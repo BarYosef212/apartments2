@@ -4,11 +4,13 @@ import { AdminDashboardPage } from './AdminDashboardPage';
 import { AdminYad2Panel } from '../components/AdminYad2Panel';
 import { AdminSitePanel } from '../components/AdminSitePanel';
 import { AdminLeadsPanel } from '../components/AdminLeadsPanel';
+import { AdminFacebookPanel } from '../components/AdminFacebookPanel';
 
 const TABS = [
   { id: 'apartments', label: 'דירות' },
   { id: 'leads', label: 'פניות' },
   { id: 'yad2', label: 'סריקת יד2' },
+  { id: 'facebook', label: 'פייסבוק' },
   { id: 'site', label: 'הגדרות אתר' },
 ] as const;
 
@@ -22,6 +24,11 @@ const PANELS = {
     title: 'סריקת יד2',
     subtitle: 'ייבוא אוטומטי של המודעות מעמוד המתווך ביד2.',
     Panel: AdminYad2Panel,
+  },
+  facebook: {
+    title: 'פרסום בפייסבוק',
+    subtitle: 'העתקת מודעות מוכנות לקבוצות פייסבוק ומעקב מה פורסם איפה.',
+    Panel: AdminFacebookPanel,
   },
   site: {
     title: 'הגדרות אתר',

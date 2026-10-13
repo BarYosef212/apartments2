@@ -35,6 +35,12 @@ const SiteSettingsSchema = new Schema<SiteSettingsDocument>(
       ),
       default: () => ({}),
     },
+    // Text of Facebook group posts; {placeholders} are filled per listing.
+    facebookTemplate: {
+      type: String,
+      default:
+        '{עסקה}: {סוג} ב{עיר}\n{רחוב}, {עיר}\n{חדרים} חדרים · {שטח} מ״ר · קומה {קומה}\n{מחיר}\n\n{תיאור}\n\n{מאפיינים}\n\nלפרטים: {טלפון}\n{קישור}',
+    },
     // Outgoing mail for website forms. The password is stored encrypted.
     smtp: {
       type: new Schema(

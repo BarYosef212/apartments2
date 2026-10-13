@@ -96,6 +96,7 @@ export interface SmtpSettings {
 
 export interface SiteSettingsDocument extends Document {
   smtp: SmtpSettings;
+  facebookTemplate: string;
   heroMedia: { kind: 'image' | 'video'; url: string };
   ownersImage: string;
   texts: SiteTexts;
