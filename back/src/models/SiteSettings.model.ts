@@ -43,6 +43,8 @@ const SiteSettingsSchema = new Schema<SiteSettingsDocument>(
           email: { type: String, default: '', trim: true },
           address: { type: String, default: '', trim: true },
           license: { type: String, default: '', trim: true },
+          // Private: where website forms are sent. Never sent to the public site.
+          leadsEmail: { type: String, default: '', trim: true },
         },
         { _id: false }
       ),

@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import { getSiteSettingsDoc } from '../models/SiteSettings.model';
 import { mediaKindOf, removeUpload, UPLOADS_URL_PREFIX } from '../services/uploads.service';
 
-const CONTACT_FIELDS = ['phone', 'whatsapp', 'email', 'address', 'license'] as const;
+const CONTACT_FIELDS = ['phone', 'whatsapp', 'email', 'address', 'license', 'leadsEmail'] as const;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TEXT_FIELDS = ['heroEyebrow', 'heroTitle', 'heroSubtitle', 'ownersTitle', 'ownersText'] as const;
 const MAX_TEXT = 400;
 
@@ -11,7 +12,9 @@ function validMediaUrl(value: string) {
   return value === '' || value.startsWith(UPLOADS_URL_PREFIX) || /^https:\/\//.test(value);
 }
 
-function toPublic(s: Awaited<ReturnType<typeof getSiteSettingsDoc>>) {
+type SettingsDoc = Awaited<ReturnType<typeof getSiteSettingsDoc>>;
+
+function toAdmin(s: SettingsDoc) {
   return {
     heroMedia: s.heroMedia,
     ownersImage: s.ownersImage,
@@ -20,10 +23,25 @@ function toPublic(s: Awaited<ReturnType<typeof getSiteSettingsDoc>>) {
   };
 }
 
+/** What anyone may see: everything except where forms are delivered. */
+function toPublic(s: SettingsDoc) {
+  const { phone, whatsapp, email, address, license } = s.contact;
+  return { ...toAdmin(s), contact: { phone, whatsapp, email, address, license } };
+}
+
 export class SiteController {
   async handleGet(req: Request, res: Response) {
     try {
       return res.json(toPublic(await getSiteSettingsDoc()));
+    } catch (error) {
+      console.error('Error fetching site settings', error);
+      return res.status(500).json({ message: 'Error fetching site settings' });
+    }
+  }
+
+  async handleGetAdmin(req: Request, res: Response) {
+    try {
+      return res.json(toAdmin(await getSiteSettingsDoc()));
     } catch (error) {
       console.error('Error fetching site settings', error);
       return res.status(500).json({ message: 'Error fetching site settings' });
@@ -68,7 +86,10 @@ export class SiteController {
           if (value.length > 200) return res.status(400).json({ message: 'Text is too long' });
           s.contact[field] = value;
         }
-        if (s.contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.contact.email)) {
+        if (
+          (s.contact.email && !EMAIL_RE.test(s.contact.email)) ||
+          (s.contact.leadsEmail && !EMAIL_RE.test(s.contact.leadsEmail))
+        ) {
           return res.status(400).json({ message: 'Invalid email' });
         }
         s.markModified('contact');
@@ -76,7 +97,7 @@ export class SiteController {
 
       await s.save();
       await Promise.all(replaced.map(removeUpload));
-      return res.json(toPublic(s));
+      return res.json(toAdmin(s));
     } catch (error) {
       console.error('Error updating site settings', error);
       return res.status(500).json({ message: 'Error updating site settings' });

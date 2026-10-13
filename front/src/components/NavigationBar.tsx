@@ -8,6 +8,7 @@ const LINKS = [
   { to: '/apartments?dealType=sale', label: 'נכסים למכירה' },
   { to: '/apartments?dealType=rent', label: 'נכסים להשכרה' },
   { to: '/#owners', label: 'לבעלי נכסים' },
+  { to: '/contact', label: 'צרו קשר' },
 ];
 
 /** Over the home page hero the bar is transparent until the page scrolls. */

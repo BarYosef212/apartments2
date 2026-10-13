@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { Apartment } from '../types/apartment.types';
 import { Button, Badge } from '../components/ui';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
-import { useChat } from '../contexts/ChatContext';
 import { ImageGallery } from '../components/ImageGallery';
 import { DEAL_TYPE_LABELS } from '../lib/format';
 import { PriceTag } from '../components/PriceTag';
@@ -16,20 +15,11 @@ export function ApartmentDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { fetchApartmentsById } = useApartmentsApi();
-  const { setIsOpen, setIsAgentMode, sendMessage, setInput,isAgentMode } = useChat();
   const contact = useSiteSettings().settings?.contact;
   const [apartment, setApartment] = useState<Apartment | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const scheduleViewing = async () => {
-    setIsAgentMode(true);
-    setIsOpen(true);
-    const msg = 
-      `אני מעוניין לקבוע פגישה בנוגע לנכס ברחוב ${apartment?.street} בעיר ${apartment?.city}`;
-    setInput(msg);
-    await sendMessage(msg, true);
-  };
 
   
 
@@ -138,8 +128,10 @@ export function ApartmentDetailsPage() {
                 size='lg'
                 className='mt-2 text-right'
               />
-              <Button onClick={scheduleViewing} size='lg' className='mt-8 w-full'>
-                תיאום ביקור בנכס
+              <Button asChild size='lg' className='mt-8 w-full'>
+                <Link to={`/contact?reason=viewing&apartment=${apartment._id}`}>
+                  תיאום ביקור בנכס
+                </Link>
               </Button>
               {contact?.phone && (
                 <a

@@ -71,6 +71,7 @@ export interface SiteContact {
   email: string;
   address: string;
   license: string;
+  leadsEmail: string;
 }
 
 export interface SiteTexts {
@@ -86,4 +87,18 @@ export interface SiteSettingsDocument extends Document {
   ownersImage: string;
   texts: SiteTexts;
   contact: SiteContact;
+}
+
+export type LeadReason = 'viewing' | 'valuation' | 'general';
+
+export interface LeadDocument extends Document {
+  name: string;
+  phone: string;
+  email: string;
+  reason: LeadReason;
+  message: string;
+  apartment: { id: string; street: string; city: string; url: string } | null;
+  emailStatus: 'sent' | 'failed' | 'not_configured';
+  emailError: string | null;
+  createdAt: Date;
 }

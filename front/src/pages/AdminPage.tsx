@@ -3,14 +3,21 @@ import { cn } from '@/lib/utils';
 import { AdminDashboardPage } from './AdminDashboardPage';
 import { AdminYad2Panel } from '../components/AdminYad2Panel';
 import { AdminSitePanel } from '../components/AdminSitePanel';
+import { AdminLeadsPanel } from '../components/AdminLeadsPanel';
 
 const TABS = [
   { id: 'apartments', label: 'דירות' },
+  { id: 'leads', label: 'פניות' },
   { id: 'yad2', label: 'סריקת יד2' },
   { id: 'site', label: 'הגדרות אתר' },
 ] as const;
 
 const PANELS = {
+  leads: {
+    title: 'פניות',
+    subtitle: 'טפסים שנשלחו מהאתר.',
+    Panel: AdminLeadsPanel,
+  },
   yad2: {
     title: 'סריקת יד2',
     subtitle: 'ייבוא אוטומטי של המודעות מעמוד המתווך ביד2.',

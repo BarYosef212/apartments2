@@ -23,7 +23,14 @@ const TEXT_FIELDS: { key: keyof SiteTexts; label: string; hint?: string; rows?: 
   { key: 'ownersText', label: 'טקסט לבעלי נכסים', rows: 3 },
 ];
 
-const CONTACT_FIELDS: { key: keyof SiteContact; label: string; type?: string; ltr?: boolean }[] = [
+const CONTACT_FIELDS: { key: keyof SiteContact; label: string; hint?: string; type?: string; ltr?: boolean }[] = [
+  {
+    key: 'leadsEmail',
+    label: 'מייל לקבלת טפסים מהאתר',
+    hint: 'לא מוצג באתר. ריק = נשלח למייל הציבורי למטה.',
+    type: 'email',
+    ltr: true,
+  },
   { key: 'phone', label: 'טלפון', type: 'tel', ltr: true },
   { key: 'whatsapp', label: 'וואטסאפ (מספר טלפון)', type: 'tel', ltr: true },
   { key: 'email', label: 'אימייל', type: 'email', ltr: true },
@@ -181,9 +188,10 @@ export function AdminSitePanel() {
                 dir={field.ltr ? 'ltr' : undefined}
                 className={field.ltr ? 'text-right' : undefined}
                 maxLength={200}
-                value={contact[field.key]}
+                value={contact[field.key] ?? ''}
                 onChange={(e) => setContact({ ...contact, [field.key]: e.target.value })}
               />
+              {field.hint && <p className='text-xs text-taupe'>{field.hint}</p>}
             </div>
           ))}
           <div className='mt-auto flex justify-end pt-4'>

@@ -33,6 +33,9 @@ export function SiteFooter() {
             <Link to='/#owners' className='hover:opacity-70'>
               לבעלי נכסים
             </Link>
+            <Link to='/contact' className='hover:opacity-70'>
+              צרו קשר
+            </Link>
           </nav>
           {hasContact && (
             <address className='flex flex-col gap-3.5 not-italic'>

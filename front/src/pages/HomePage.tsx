@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
-import { useChat } from '../contexts/ChatContext';
 import { DEAL_TYPE_LABELS, formatPrice, mediaUrl, sizedImage } from '../lib/format';
 import { useSiteSettings } from '../contexts/SiteSettingsContext';
 import { Apartment, DealType } from '../types/apartment.types';
@@ -52,7 +51,6 @@ export function HomePage() {
   const navigate = useNavigate();
   const { hash } = useLocation();
   const { fetchApartments } = useApartmentsApi();
-  const { setIsOpen, setIsAgentMode, setInput } = useChat();
   const { settings } = useSiteSettings();
 
   const [apartments, setApartments] = useState<Apartment[]>([]);
@@ -94,11 +92,6 @@ export function HomePage() {
     navigate(`/apartments?${params}`);
   }
 
-  function openOwnerChat() {
-    setIsAgentMode(true);
-    setInput('שלום, יש לי נכס ואשמח לתאם פגישת הערכה');
-    setIsOpen(true);
-  }
 
   return (
     <div>
@@ -303,13 +296,12 @@ export function HomePage() {
               </p>
             )}
             <div className='mt-11 flex flex-wrap items-center gap-7'>
-              <button
-                type='button'
-                onClick={openOwnerChat}
+              <Link
+                to='/contact?reason=valuation'
                 className='inline-flex min-h-14 items-center bg-sand px-8 text-[17px] font-semibold text-ink transition-colors hover:bg-white'
               >
                 לתיאום פגישת הערכה
-              </button>
+              </Link>
               {phone && (
                 <a
                   href={`tel:${phone}`}

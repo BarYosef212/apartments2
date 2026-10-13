@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
+import { ContactPage } from './pages/ContactPage';
 import { ChatProvider } from './contexts/ChatContext';
 import { SiteSettingsProvider } from './contexts/SiteSettingsContext';
 
@@ -36,6 +37,14 @@ export default function App() : JSX.Element {
             element={
               <AppLayout>
                 <ApartmentDetailsPage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path='/contact'
+            element={
+              <AppLayout>
+                <ContactPage />
               </AppLayout>
             }
           />

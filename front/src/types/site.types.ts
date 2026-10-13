@@ -14,6 +14,8 @@ export interface SiteContact {
   email: string;
   address: string;
   license: string;
+  /** Admin only: where website forms are emailed. */
+  leadsEmail?: string;
 }
 
 export interface SiteSettings {

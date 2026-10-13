@@ -6,6 +6,7 @@ import authRouter from './routes/auth.routes';
 import scraperRouter from './routes/scraper.routes';
 import { adminSiteRouter, publicSiteRouter } from './routes/site.routes';
 import { UPLOADS_DIR } from './services/uploads.service';
+import { adminLeadsRouter, publicLeadsRouter } from './routes/leads.routes';
 import { reschedule } from './services/scheduler.service';
 import { markInterruptedScans } from './services/yad2Scraper.service';
 import session from 'express-session'
@@ -39,6 +40,8 @@ app.use('/apartments', apartmentsRouter);
 app.use('/admin/scraper', scraperRouter);
 app.use('/site-settings', publicSiteRouter);
 app.use('/admin/site', adminSiteRouter);
+app.use('/leads', publicLeadsRouter);
+app.use('/admin/leads', adminLeadsRouter);
 app.use(
   '/uploads',
   express.static(UPLOADS_DIR, {
