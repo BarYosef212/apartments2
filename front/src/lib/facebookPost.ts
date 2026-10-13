@@ -1,6 +1,36 @@
 import { Apartment } from '../types/apartment.types';
 import { DEAL_TYPE_LABELS, formatPrice } from './format';
 
+/** Emoji per feature, matching the labels the scraper stores. */
+const FEATURE_EMOJI: Record<string, string> = {
+  'מיזוג': '❄️',
+  'מזגן טורנדו': '🌀',
+  'דוד שמש': '☀️',
+  'סורגים': '🔒',
+  'ריהוט': '🛋️',
+  'ממ״ד': '🛡️',
+  'מקלט': '🧱',
+  'מרפסת': '🌅',
+  'מעלית': '🛗',
+  'חניה': '🚗',
+  'מחסן': '📦',
+  'גישה לנכים': '♿',
+  'משופצת': '✨',
+  'חיות מחמד': '🐾',
+  'מתאים לשותפים': '👥',
+  'מטבח כשר': '🍽️',
+};
+
+/**
+ * One feature per line, its emoji after the word: in a Hebrew (RTL) post
+ * that puts the emoji on the left.
+ */
+function featureLines(features: string[] = []) {
+  return features
+    .map((feature) => (FEATURE_EMOJI[feature] ? `${feature} ${FEATURE_EMOJI[feature]}` : feature))
+    .join('\n');
+}
+
 /** Placeholders the post template understands, with what each one fills in. */
 export const POST_PLACEHOLDERS: { key: string; label: string }[] = [
   { key: 'עסקה', label: 'למכירה / להשכרה' },
@@ -40,7 +70,7 @@ export function renderPost(
     קומה: apartment.floor === 0 ? 'קרקע' : apartment.floor != null ? String(apartment.floor) : '',
     מחיר: price,
     תיאור: apartment.info?.trim() ?? '',
-    מאפיינים: apartment.features?.join(' · ') ?? '',
+    מאפיינים: featureLines(apartment.features),
     טלפון: context.phone ?? '',
     קישור: `${context.siteOrigin}/apartments/${apartment._id}`,
   };
