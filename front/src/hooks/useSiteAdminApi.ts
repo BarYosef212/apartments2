@@ -1,8 +1,11 @@
 import { api } from '../api/api';
-import { MediaKind, SiteSettings } from '../types/site.types';
+import { MediaKind, SiteContact, SiteSettings, SmtpSettings } from '../types/site.types';
 
 export type SiteSettingsUpdate = Partial<
-  Pick<SiteSettings, 'heroMedia' | 'ownersImage' | 'texts' | 'contact'>
+  Pick<SiteSettings, 'heroMedia' | 'ownersImage' | 'texts'> & {
+    contact: Partial<SiteContact>;
+    smtp: Partial<Omit<SmtpSettings, 'hasPassword'>> & { pass?: string };
+  }
 >;
 
 export function useSiteAdminApi() {
@@ -26,5 +29,9 @@ export function useSiteAdminApi() {
     return res.data;
   };
 
-  return { fetchSettings, saveSettings, uploadMedia };
+  /** Sends a test email to the leads address; resolves to that address. */
+  const sendTestMail = async () =>
+    (await api.post<{ ok: true; to: string }>('/admin/site/mail/test')).data.to;
+
+  return { fetchSettings, saveSettings, uploadMedia, sendTestMail };
 }

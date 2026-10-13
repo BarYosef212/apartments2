@@ -61,6 +61,27 @@ ${lead.apartment ? `<p><a href="${escapeHtml(lead.apartment.url)}">לצפייה 
   return { subject, text, html };
 }
 
+/** Emails a saved lead to the office and records whether it went out. */
+async function deliverLead(lead: LeadDocument) {
+  const settings = await getSiteSettingsDoc();
+  const to = settings.contact.leadsEmail || settings.contact.email;
+  if (!to || !(await isMailConfigured())) {
+    lead.emailStatus = 'not_configured';
+    lead.emailError = null;
+  } else {
+    try {
+      await sendMail({ to, ...buildEmail(lead), replyTo: lead.email || undefined });
+      lead.emailStatus = 'sent';
+      lead.emailError = null;
+    } catch (err) {
+      console.error('[leads] email failed:', (err as Error).message);
+      lead.emailStatus = 'failed';
+      lead.emailError = (err as Error).message;
+    }
+  }
+  await lead.save();
+}
+
 export class LeadsController {
   async handleCreate(req: Request, res: Response) {
     try {
@@ -99,9 +120,6 @@ export class LeadsController {
         }
       }
 
-      const settings = await getSiteSettingsDoc();
-      const to = settings.contact.leadsEmail || settings.contact.email;
-
       // Save first, so a lead is never lost to a mail failure.
       const lead = await Lead.create({
         name,
@@ -110,26 +128,27 @@ export class LeadsController {
         reason,
         message,
         apartment,
-        emailStatus: to && isMailConfigured() ? 'sent' : 'not_configured',
+        emailStatus: 'not_configured',
       });
-
-      if (lead.emailStatus === 'sent') {
-        try {
-          await sendMail({ to, ...buildEmail(lead), replyTo: email || undefined });
-        } catch (err) {
-          console.error('[leads] email failed:', (err as Error).message);
-          lead.emailStatus = 'failed';
-          lead.emailError = (err as Error).message;
-          await lead.save();
-        }
-      } else {
-        console.warn('[leads] email not sent: no leads email or SMTP settings');
-      }
+      await deliverLead(lead);
 
       return res.status(201).json({ ok: true });
     } catch (error) {
       console.error('Error creating lead', error);
       return res.status(500).json({ message: 'Error creating lead' });
+    }
+  }
+
+  async handleResend(req: Request, res: Response) {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Not found' });
+      const lead = await Lead.findById(req.params.id);
+      if (!lead) return res.status(404).json({ message: 'Not found' });
+      await deliverLead(lead);
+      return res.json(lead.toObject());
+    } catch (error) {
+      console.error('Error resending lead', error);
+      return res.status(500).json({ message: 'Error resending lead' });
     }
   }
 

@@ -14,6 +14,7 @@ export const adminSiteRouter = Router();
 adminSiteRouter.use(requireAdmin);
 adminSiteRouter.get('/settings', sc.handleGetAdmin.bind(sc));
 adminSiteRouter.put('/settings', sc.handleUpdate.bind(sc));
+adminSiteRouter.post('/mail/test', sc.handleTestMail.bind(sc));
 adminSiteRouter.post(
   '/uploads',
   (req: Request, res: Response, next: NextFunction) =>

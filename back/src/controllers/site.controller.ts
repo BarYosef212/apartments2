@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { getSiteSettingsDoc } from '../models/SiteSettings.model';
 import { mediaKindOf, removeUpload, UPLOADS_URL_PREFIX } from '../services/uploads.service';
+import { encryptSecret } from '../services/secrets.service';
+import { isMailConfigured, sendMail } from '../services/mail.service';
 
 const CONTACT_FIELDS = ['phone', 'whatsapp', 'email', 'address', 'license', 'leadsEmail'] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15,18 +17,26 @@ function validMediaUrl(value: string) {
 type SettingsDoc = Awaited<ReturnType<typeof getSiteSettingsDoc>>;
 
 function toAdmin(s: SettingsDoc) {
+  const { host, port, user, from, passEncrypted } = s.smtp;
   return {
     heroMedia: s.heroMedia,
     ownersImage: s.ownersImage,
     texts: s.texts,
     contact: s.contact,
+    // The password never leaves the server; the admin only learns it is set.
+    smtp: { host, port, user, from, hasPassword: !!passEncrypted },
   };
 }
 
 /** What anyone may see: everything except where forms are delivered. */
 function toPublic(s: SettingsDoc) {
   const { phone, whatsapp, email, address, license } = s.contact;
-  return { ...toAdmin(s), contact: { phone, whatsapp, email, address, license } };
+  return {
+    heroMedia: s.heroMedia,
+    ownersImage: s.ownersImage,
+    texts: s.texts,
+    contact: { phone, whatsapp, email, address, license },
+  };
 }
 
 export class SiteController {
@@ -50,7 +60,7 @@ export class SiteController {
 
   async handleUpdate(req: Request, res: Response) {
     try {
-      const { heroMedia, ownersImage, texts, contact } = req.body ?? {};
+      const { heroMedia, ownersImage, texts, contact, smtp } = req.body ?? {};
       const s = await getSiteSettingsDoc();
       const replaced: string[] = [];
 
@@ -95,12 +105,56 @@ export class SiteController {
         s.markModified('contact');
       }
 
+      if (smtp !== undefined) {
+        const host = String(smtp.host ?? s.smtp.host).trim();
+        const user = String(smtp.user ?? s.smtp.user).trim();
+        const from = String(smtp.from ?? s.smtp.from).trim();
+        const port = Number(smtp.port ?? s.smtp.port);
+        if (host && !/^[a-z0-9.-]+$/i.test(host)) return res.status(400).json({ message: 'Invalid SMTP host' });
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+          return res.status(400).json({ message: 'Invalid SMTP port' });
+        }
+        if ([host, user, from].some((v) => v.length > 200)) {
+          return res.status(400).json({ message: 'Text is too long' });
+        }
+        s.smtp.host = host;
+        s.smtp.port = port;
+        s.smtp.user = user;
+        s.smtp.from = from;
+        // Empty or missing password = keep the stored one.
+        if (typeof smtp.pass === 'string' && smtp.pass.length > 0) {
+          if (smtp.pass.length > 500) return res.status(400).json({ message: 'Text is too long' });
+          s.smtp.passEncrypted = encryptSecret(smtp.pass);
+        }
+        s.markModified('smtp');
+      }
+
       await s.save();
       await Promise.all(replaced.map(removeUpload));
       return res.json(toAdmin(s));
     } catch (error) {
       console.error('Error updating site settings', error);
       return res.status(500).json({ message: 'Error updating site settings' });
+    }
+  }
+
+  async handleTestMail(req: Request, res: Response) {
+    try {
+      const s = await getSiteSettingsDoc();
+      const to = s.contact.leadsEmail || s.contact.email;
+      if (!to) return res.status(400).json({ message: 'No leads email' });
+      if (!(await isMailConfigured())) return res.status(400).json({ message: 'Mail is not configured' });
+      await sendMail({
+        to,
+        subject: 'בדיקת שליחת מיילים מהאתר',
+        text: 'אם קיבלתם את המייל הזה, טפסים מהאתר יישלחו לכתובת הזו.',
+        html: '<div dir="rtl" style="font-family:Arial,sans-serif">אם קיבלתם את המייל הזה, טפסים מהאתר יישלחו לכתובת הזו.</div>',
+      });
+      return res.json({ ok: true, to });
+    } catch (error) {
+      console.error('Test mail failed', error);
+      // The mail server's own reason helps the admin fix the settings.
+      return res.status(502).json({ message: 'Send failed', detail: (error as Error).message });
     }
   }
 

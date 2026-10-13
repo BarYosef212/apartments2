@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { cn } from '@/lib/utils';
 import { Button, Card, Input } from './ui';
 import { useSiteAdminApi, SiteSettingsUpdate } from '../hooks/useSiteAdminApi';
 import { useSiteSettings } from '../contexts/SiteSettingsContext';
@@ -24,13 +25,6 @@ const TEXT_FIELDS: { key: keyof SiteTexts; label: string; hint?: string; rows?: 
 ];
 
 const CONTACT_FIELDS: { key: keyof SiteContact; label: string; hint?: string; type?: string; ltr?: boolean }[] = [
-  {
-    key: 'leadsEmail',
-    label: 'מייל לקבלת טפסים מהאתר',
-    hint: 'לא מוצג באתר. ריק = נשלח למייל הציבורי למטה.',
-    type: 'email',
-    ltr: true,
-  },
   { key: 'phone', label: 'טלפון', type: 'tel', ltr: true },
   { key: 'whatsapp', label: 'וואטסאפ (מספר טלפון)', type: 'tel', ltr: true },
   { key: 'email', label: 'אימייל', type: 'email', ltr: true },
@@ -43,6 +37,10 @@ const SERVER_MESSAGES: Record<string, string> = {
   'Unsupported or missing file': 'סוג קובץ לא נתמך. אפשר JPG, PNG, WEBP, MP4, WEBM או MOV.',
   'Invalid email': 'כתובת האימייל אינה תקינה.',
   'Text is too long': 'אחד הטקסטים ארוך מדי.',
+  'Invalid SMTP host': 'כתובת שרת המייל אינה תקינה.',
+  'Invalid SMTP port': 'הפורט אינו תקין.',
+  'No leads email': 'יש להזין קודם מייל לקבלת טפסים ולשמור.',
+  'Mail is not configured': 'יש להזין קודם את פרטי שרת המייל ולשמור.',
 };
 
 function errorMessage(err: unknown, fallback: string) {
@@ -54,7 +52,7 @@ function errorMessage(err: unknown, fallback: string) {
 }
 
 export function AdminSitePanel() {
-  const { fetchSettings, saveSettings, uploadMedia } = useSiteAdminApi();
+  const { fetchSettings, saveSettings, uploadMedia, sendTestMail } = useSiteAdminApi();
   const { setSettings: publish } = useSiteSettings();
 
   const [saved, setSaved] = useState<SiteSettings | null>(null);
@@ -66,22 +64,26 @@ export function AdminSitePanel() {
 
   useEffect(() => {
     fetchSettings()
-      .then(applySaved)
+      .then((settings) => applySaved(settings, true))
       .catch((err) => setError(errorMessage(err, 'שגיאה בטעינת הגדרות האתר.')));
   }, []);
 
-  function applySaved(settings: SiteSettings) {
+  // Forms are reset only by their own save, so saving one card (or uploading
+  // an image) doesn't discard unsaved edits in another.
+  function applySaved(settings: SiteSettings, resetForms = false) {
     setSaved(settings);
-    setTexts(settings.texts);
-    setContact(settings.contact);
+    if (resetForms) {
+      setTexts(settings.texts);
+      setContact(settings.contact);
+    }
     publish(settings);
   }
 
-  async function save(update: SiteSettingsUpdate, successMessage: string) {
+  async function save(update: SiteSettingsUpdate, successMessage: string, resetForms = false) {
     setError(null);
     setNotice(null);
     const next = await saveSettings(update);
-    applySaved(next);
+    applySaved(next, resetForms);
     setNotice(successMessage);
   }
 
@@ -90,7 +92,8 @@ export function AdminSitePanel() {
     if (!texts || !contact) return;
     setIsSaving(true);
     try {
-      await save({ texts, contact }, 'הטקסטים ופרטי הקשר נשמרו.');
+      const { leadsEmail: _managedByMailCard, ...publicContact } = contact;
+      await save({ texts, contact: publicContact }, 'הטקסטים ופרטי הקשר נשמרו.', true);
     } catch (err) {
       setError(errorMessage(err, 'שגיאה בשמירה.'));
     } finally {
@@ -106,9 +109,8 @@ export function AdminSitePanel() {
     );
   }
 
-  const isDirty =
-    JSON.stringify({ texts, contact }) !==
-    JSON.stringify({ texts: saved.texts, contact: saved.contact });
+  const isDirty = TEXT_FIELDS.some((f) => texts[f.key] !== saved.texts[f.key]) ||
+    CONTACT_FIELDS.some((f) => (contact[f.key] ?? '') !== (saved.contact[f.key] ?? ''));
 
   return (
     <div className='space-y-6'>
@@ -201,6 +203,18 @@ export function AdminSitePanel() {
           </div>
         </Card>
       </form>
+
+      <MailCard
+        saved={saved}
+        onSave={(update) => save(update, 'הגדרות המייל נשמרו.')}
+        onTest={async () => {
+          setError(null);
+          setNotice(null);
+          const to = await sendTestMail();
+          setNotice(`נשלח מייל בדיקה אל ${to}. אם הוא לא הגיע תוך דקה, בדקו גם בספאם.`);
+        }}
+        onError={setError}
+      />
     </div>
   );
 }
@@ -327,5 +341,232 @@ function MediaPicker({
         )}
       </div>
     </Card>
+  );
+}
+
+const SMTP_PRESETS = [
+  { id: 'gmail', label: 'Gmail', host: 'smtp.gmail.com', port: 465 },
+  { id: 'outlook', label: 'Outlook / Hotmail', host: 'smtp-mail.outlook.com', port: 587 },
+  { id: 'other', label: 'אחר', host: '', port: 465 },
+];
+
+function presetOf(host: string) {
+  return SMTP_PRESETS.find((p) => p.host && p.host === host)?.id ?? (host ? 'other' : 'gmail');
+}
+
+/** Where website forms go, and the mail server that sends them. */
+function MailCard({
+  saved,
+  onSave,
+  onTest,
+  onError,
+}: {
+  saved: SiteSettings;
+  onSave: (update: SiteSettingsUpdate) => Promise<void>;
+  onTest: () => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const smtp = saved.smtp ?? { host: '', port: 465, user: '', from: '', hasPassword: false };
+  const [leadsEmail, setLeadsEmail] = useState(saved.contact.leadsEmail ?? '');
+  const [preset, setPreset] = useState(presetOf(smtp.host));
+  const [host, setHost] = useState(smtp.host || SMTP_PRESETS[0].host);
+  const [port, setPort] = useState(String(smtp.port || 465));
+  const [user, setUser] = useState(smtp.user);
+  const [pass, setPass] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+
+  function choosePreset(id: string) {
+    setPreset(id);
+    const p = SMTP_PRESETS.find((x) => x.id === id)!;
+    if (p.host) {
+      setHost(p.host);
+      setPort(String(p.port));
+    }
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await onSave({
+        contact: { leadsEmail },
+        smtp: { host, port: Number(port), user, from: user, ...(pass ? { pass } : {}) },
+      });
+      setPass('');
+    } catch (err) {
+      onError(errorMessage(err, 'שגיאה בשמירה.'));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleTest() {
+    setIsTesting(true);
+    try {
+      await onTest();
+    } catch (err) {
+      const data = axios.isAxiosError(err)
+        ? (err.response?.data as { message?: string; detail?: string })
+        : undefined;
+      onError(
+        data?.message === 'Send failed'
+          ? `השליחה נכשלה. בדקו את כתובת המייל והסיסמה. (${data.detail ?? ''})`
+          : errorMessage(err, 'השליחה נכשלה.'),
+      );
+    } finally {
+      setIsTesting(false);
+    }
+  }
+
+  const isGmail = preset === 'gmail';
+
+  return (
+    <form onSubmit={handleSave}>
+      <Card className='space-y-6 p-6'>
+        <div>
+          <h2 className={SECTION_TITLE}>קבלת טפסים במייל</h2>
+          <p className='mt-2 text-sm text-taupe'>
+            פניות מטופס יצירת הקשר באתר יישלחו לכתובת הזו. כדי לשלוח אותן, האתר
+            משתמש בחשבון מייל שלכם.
+          </p>
+        </div>
+
+        <div className='grid gap-6 lg:grid-cols-2'>
+          <div className='space-y-1.5'>
+            <label htmlFor='mail-leads' className={LABEL}>
+              מייל לקבלת טפסים
+            </label>
+            <Input
+              id='mail-leads'
+              type='email'
+              dir='ltr'
+              className='text-right'
+              maxLength={200}
+              value={leadsEmail}
+              onChange={(e) => setLeadsEmail(e.target.value)}
+            />
+            <p className='text-xs text-taupe'>לא מוצג באתר. ריק = נשלח למייל הציבורי מפרטי הקשר.</p>
+          </div>
+
+          <fieldset className='space-y-1.5'>
+            <legend className={cn(LABEL, 'mb-1.5')}>החשבון ששולח את המיילים</legend>
+            <div className='flex flex-wrap gap-2'>
+              {SMTP_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type='button'
+                  aria-pressed={preset === p.id}
+                  onClick={() => choosePreset(p.id)}
+                  className={cn(
+                    'min-h-11 border px-4 text-[15px] transition-colors',
+                    preset === p.id ? 'border-ink bg-ink text-white' : 'border-line hover:border-ink',
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <div className='space-y-1.5'>
+            <label htmlFor='mail-user' className={LABEL}>
+              כתובת המייל השולחת
+            </label>
+            <Input
+              id='mail-user'
+              type='email'
+              dir='ltr'
+              className='text-right'
+              autoComplete='off'
+              maxLength={200}
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+            />
+          </div>
+
+          <div className='space-y-1.5'>
+            <label htmlFor='mail-pass' className={LABEL}>
+              {isGmail ? 'סיסמת אפליקציה' : 'סיסמה'}
+            </label>
+            <Input
+              id='mail-pass'
+              type='password'
+              dir='ltr'
+              className='text-right'
+              autoComplete='new-password'
+              maxLength={500}
+              placeholder={smtp.hasPassword ? 'שמורה. הזינו רק כדי להחליף' : ''}
+              value={pass}
+              onChange={(e) => setPass(e.target.value)}
+            />
+            {isGmail && (
+              <p className='text-xs leading-relaxed text-taupe'>
+                ב-Gmail לא משתמשים בסיסמה הרגילה. יוצרים סיסמת אפליקציה בחשבון
+                Google (נדרש אימות דו-שלבי):{' '}
+                <a
+                  href='https://myaccount.google.com/apppasswords'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='underline hover:text-ink'
+                >
+                  יצירת סיסמת אפליקציה
+                </a>
+                .
+              </p>
+            )}
+          </div>
+
+          {preset === 'other' && (
+            <>
+              <div className='space-y-1.5'>
+                <label htmlFor='mail-host' className={LABEL}>
+                  שרת SMTP
+                </label>
+                <Input
+                  id='mail-host'
+                  dir='ltr'
+                  className='text-right'
+                  placeholder='smtp.example.com'
+                  maxLength={200}
+                  value={host}
+                  onChange={(e) => setHost(e.target.value)}
+                />
+              </div>
+              <div className='space-y-1.5'>
+                <label htmlFor='mail-port' className={LABEL}>
+                  פורט
+                </label>
+                <Input
+                  id='mail-port'
+                  type='number'
+                  dir='ltr'
+                  className='text-right'
+                  min={1}
+                  max={65535}
+                  value={port}
+                  onChange={(e) => setPort(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className='flex flex-wrap justify-end gap-3 border-t border-line pt-5'>
+          <Button
+            type='button'
+            variant='outline'
+            size='lg'
+            disabled={isTesting || isSaving}
+            onClick={handleTest}
+          >
+            {isTesting ? 'שולח…' : 'שליחת מייל בדיקה'}
+          </Button>
+          <Button type='submit' size='lg' disabled={isSaving}>
+            {isSaving ? 'שומר…' : 'שמירת הגדרות מייל'}
+          </Button>
+        </div>
+      </Card>
+    </form>
   );
 }

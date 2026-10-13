@@ -18,7 +18,17 @@ export interface SiteContact {
   leadsEmail?: string;
 }
 
+/** Admin only. The password is write-only: the server says whether one is set. */
+export interface SmtpSettings {
+  host: string;
+  port: number;
+  user: string;
+  from: string;
+  hasPassword: boolean;
+}
+
 export interface SiteSettings {
+  smtp?: SmtpSettings;
   /** An empty url means the home page picks a photo from the listings. */
   heroMedia: { kind: MediaKind; url: string };
   ownersImage: string;

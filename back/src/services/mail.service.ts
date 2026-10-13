@@ -1,23 +1,45 @@
-import nodemailer, { Transporter } from 'nodemailer';
+import nodemailer from 'nodemailer';
+import { getSiteSettingsDoc } from '../models/SiteSettings.model';
+import { decryptSecret } from './secrets.service';
 
-let transporter: Transporter | null = null;
-
-/** SMTP comes from the environment (see .env.example). */
-export function isMailConfigured() {
-  return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+interface MailConfig {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  from: string;
 }
 
-function getTransporter() {
-  if (!transporter) {
-    const port = Number(process.env.SMTP_PORT || 465);
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
+/**
+ * SMTP settings from the admin (site settings), or else from the environment
+ * (see .env.example). Null when neither is complete.
+ */
+async function getMailConfig(): Promise<MailConfig | null> {
+  const { smtp } = await getSiteSettingsDoc();
+  if (smtp?.host && smtp.user && smtp.passEncrypted) {
+    return {
+      host: smtp.host,
+      port: smtp.port || 465,
+      user: smtp.user,
+      pass: decryptSecret(smtp.passEncrypted),
+      from: smtp.from || smtp.user,
+    };
   }
-  return transporter;
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
+  if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+    return {
+      host: SMTP_HOST,
+      port: Number(SMTP_PORT || 465),
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+      from: MAIL_FROM || SMTP_USER,
+    };
+  }
+  return null;
+}
+
+export async function isMailConfigured() {
+  return (await getMailConfig()) !== null;
 }
 
 export async function sendMail(options: {
@@ -27,8 +49,15 @@ export async function sendMail(options: {
   html: string;
   replyTo?: string;
 }) {
-  await getTransporter().sendMail({
-    from: process.env.MAIL_FROM || process.env.SMTP_USER,
-    ...options,
+  const config = await getMailConfig();
+  if (!config) throw new Error('Mail is not configured');
+  // Built per message: volume is tiny and settings can change from the admin.
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.port === 465,
+    auth: { user: config.user, pass: config.pass },
+    connectionTimeout: 15000,
   });
+  await transporter.sendMail({ from: config.from, ...options });
 }

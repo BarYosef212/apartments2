@@ -10,3 +10,4 @@ publicLeadsRouter.post('/', lc.handleCreate.bind(lc));
 export const adminLeadsRouter = Router();
 adminLeadsRouter.use(requireAdmin);
 adminLeadsRouter.get('/', lc.handleList.bind(lc));
+adminLeadsRouter.post('/:id/resend', lc.handleResend.bind(lc));

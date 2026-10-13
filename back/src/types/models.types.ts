@@ -86,7 +86,16 @@ export interface SiteTexts {
   ownersText: string;
 }
 
+export interface SmtpSettings {
+  host: string;
+  port: number;
+  user: string;
+  passEncrypted: string;
+  from: string;
+}
+
 export interface SiteSettingsDocument extends Document {
+  smtp: SmtpSettings;
   heroMedia: { kind: 'image' | 'video'; url: string };
   ownersImage: string;
   texts: SiteTexts;

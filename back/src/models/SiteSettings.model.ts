@@ -35,6 +35,20 @@ const SiteSettingsSchema = new Schema<SiteSettingsDocument>(
       ),
       default: () => ({}),
     },
+    // Outgoing mail for website forms. The password is stored encrypted.
+    smtp: {
+      type: new Schema(
+        {
+          host: { type: String, default: '', trim: true },
+          port: { type: Number, default: 465 },
+          user: { type: String, default: '', trim: true },
+          passEncrypted: { type: String, default: '' },
+          from: { type: String, default: '', trim: true },
+        },
+        { _id: false }
+      ),
+      default: () => ({}),
+    },
     contact: {
       type: new Schema(
         {

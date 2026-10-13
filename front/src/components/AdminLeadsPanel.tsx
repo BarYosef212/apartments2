@@ -39,6 +39,19 @@ const formatDate = (value: string) =>
 export function AdminLeadsPanel() {
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resending, setResending] = useState<string | null>(null);
+
+  async function resend(id: string) {
+    setResending(id);
+    try {
+      const res = await api.post<Lead>(`/admin/leads/${id}/resend`);
+      setLeads((current) => current?.map((l) => (l._id === id ? res.data : l)) ?? null);
+    } catch {
+      setError('השליחה החוזרת נכשלה.');
+    } finally {
+      setResending(null);
+    }
+  }
 
   useEffect(() => {
     api
@@ -60,8 +73,12 @@ export function AdminLeadsPanel() {
     <div className='space-y-4'>
       {unsent > 0 && (
         <p className='border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800'>
-          {unsent} פניות לא נשלחו במייל. הן שמורות כאן. כדי שיישלחו, יש להגדיר מייל
-          לקבלת טפסים בהגדרות האתר ואת פרטי שרת המייל (SMTP) בשרת.
+          {unsent === 1 ? 'פנייה אחת לא נשלחה' : `${unsent} פניות לא נשלחו`} במייל. הן
+          שמורות כאן. כדי לקבל פניות במייל, הגדירו את המייל ב
+          <Link to='/admin?tab=site' className='mx-1 font-semibold underline'>
+            הגדרות אתר
+          </Link>
+          ואז לחצו על ״שליחה חוזרת״.
         </p>
       )}
       <Card className='overflow-hidden'>
@@ -121,6 +138,16 @@ export function AdminLeadsPanel() {
                       className={`whitespace-nowrap py-3 pl-4 text-xs ${EMAIL_STATUS[lead.emailStatus].className}`}
                     >
                       {EMAIL_STATUS[lead.emailStatus].label}
+                      {lead.emailStatus !== 'sent' && (
+                        <button
+                          type='button'
+                          onClick={() => resend(lead._id)}
+                          disabled={resending === lead._id}
+                          className='mt-1 block min-h-8 text-xs font-semibold text-ink underline disabled:opacity-50'
+                        >
+                          {resending === lead._id ? 'שולח…' : 'שליחה חוזרת'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
