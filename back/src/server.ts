@@ -5,6 +5,7 @@ import apartmentsRouter from './routes/apartments.routes';
 import authRouter from './routes/auth.routes';
 import scraperRouter from './routes/scraper.routes';
 import { reschedule } from './services/scheduler.service';
+import { markInterruptedScans } from './services/yad2Scraper.service';
 import session from 'express-session'
 import dotenv from 'dotenv';
 dotenv.config();
@@ -38,6 +39,7 @@ app.use('/admin/scraper', scraperRouter);
 async function start() {
   try {
     await mongoose.connect(MONGO_URI);
+    await markInterruptedScans().catch((e) => console.error('Failed to clean up scans', e));
     await reschedule().catch((e) => console.error('Failed to start scheduler', e));
     app.listen(PORT, () => {
       console.info(`Server is running on http://localhost:${PORT}`);

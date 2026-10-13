@@ -1,6 +1,6 @@
 import { Apartment } from '../models/Apartment.model';
 import { ScrapeLog } from '../models/ScrapeLog.model';
-import { getSettingsDoc } from '../models/ScraperSettings.model';
+import { getSettingsDoc, ScraperSettings } from '../models/ScraperSettings.model';
 import { EmbeddingController } from '../controllers/embedding.controller';
 import { ScrapeCounts } from '../types/models.types';
 import { openYad2Session, Yad2BlockedError, Yad2Listing, Yad2Session } from './yad2Extractor';
@@ -239,6 +239,22 @@ export async function runScrape(trigger: ScrapeTrigger): Promise<void> {
     await settings.save().catch(() => undefined);
     running = false;
   }
+}
+
+/**
+ * A scan only lives in this process, so anything still marked running at
+ * startup was cut off by a restart.
+ */
+export async function markInterruptedScans() {
+  const error = 'Server restarted during scan';
+  await ScrapeLog.updateMany(
+    { status: 'running' },
+    { $set: { status: 'failed', error, finishedAt: new Date() } }
+  );
+  await ScraperSettings.updateMany(
+    { lastStatus: 'running' },
+    { $set: { lastStatus: 'failed', lastError: error } }
+  );
 }
 
 /** Fire-and-forget starter used by the API: throws 409-type error synchronously-ish, then runs in background. */

@@ -270,7 +270,11 @@ async function loadPage(page: Page, url: string): Promise<{ json: unknown[] }> {
   page.on('response', onResponse);
   try {
     const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => undefined);
+    // The listing data is server-rendered into __NEXT_DATA__, so it is there as
+    // soon as the DOM is. Only pages without it need to wait for XHRs. (Yad2
+    // never goes network-idle because of analytics, so that wait always times out.)
+    const hasNextData = await page.$('script#__NEXT_DATA__').then(Boolean);
+    if (!hasNextData) await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => undefined);
     const html = await page.content();
     if (looksBlocked(html, resp?.status())) throw new Yad2BlockedError();
     const nextData = parseNextData(html);

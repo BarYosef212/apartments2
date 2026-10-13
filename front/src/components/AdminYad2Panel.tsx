@@ -68,6 +68,7 @@ const SERVER_MESSAGES: Record<string, string> = {
   'Cannot enable scraper without a Yad2 URL':
     'לא ניתן להפעיל סריקה אוטומטית ללא קישור ליד2.',
   'Yad2 URL is not configured': 'יש לשמור קישור ליד2 לפני סריקה.',
+  'Server restarted during scan': 'הסריקה נקטעה כי השרת הופעל מחדש.',
   'Yad2 blocked the request (bot protection)':
     'יד2 חסמו את הסריקה (הגנה מפני בוטים). נסו שוב מאוחר יותר.',
 };
