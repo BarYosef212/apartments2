@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
 import { validateUserCredentials } from '../services/auth.service';
 import * as CONS from '../config/constants'
-import bcrypt from 'bcryptjs';
-import { User } from '../models/User.model';
 
 export class AuthController {
   async handleLogin(req: Request, res: Response) {
@@ -27,23 +25,6 @@ export class AuthController {
     }
   }
 
-  async createAdminUser(req: Request, res: Response) {
-    try {
-      const { email, password } = req.body;
-
-      if (!email || !password) {
-        return res.status(400).json({ message: CONS.DETAILS_REQUIRED });
-      }
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      await User.create({ email, password: hashedPassword, role: 'admin' });
-
-      return res.json("Admin user created successfully");
-    } catch (error) {
-      console.error(CONS.ERROR_LOGIN, error);
-      return res.status(500).json({ message: CONS.ERROR_LOGIN });
-    }
-  }
 }
 
 

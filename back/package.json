@@ -7,7 +7,8 @@
     "start": "node dist/server.js",
     "dev": "nodemon --exec ts-node src/server.ts",
     "install:browser": "playwright install chromium",
-    "test:yad2": "TS_NODE_PROJECT=tsconfig.scripts.json ts-node scripts/test-yad2-parse.ts"
+    "test:yad2": "TS_NODE_PROJECT=tsconfig.scripts.json ts-node scripts/test-yad2-parse.ts",
+    "create-admin": "TS_NODE_PROJECT=tsconfig.scripts.json ts-node scripts/create-admin.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
