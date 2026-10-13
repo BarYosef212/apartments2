@@ -13,11 +13,11 @@ export async function reschedule() {
     console.info('[scheduler] disabled');
     return;
   }
-  const ms = settings.intervalHours * 60 * 60 * 1000;
+  const ms = settings.intervalMinutes * 60 * 1000;
   timer = setInterval(() => {
     if (isScrapeRunning()) return;
     runScrape('schedule').catch((e) => console.error('[scheduler] run error', e));
   }, ms);
   timer.unref();
-  console.info(`[scheduler] scheduled every ${settings.intervalHours}h`);
+  console.info(`[scheduler] scheduled every ${settings.intervalMinutes} min`);
 }

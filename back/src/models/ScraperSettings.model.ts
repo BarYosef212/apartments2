@@ -5,7 +5,9 @@ const ScraperSettingsSchema = new Schema<ScraperSettingsDocument>(
   {
     yad2Urls: { type: [String], default: [] },
     yad2Url: { type: String, trim: true },
-    intervalHours: { type: Number, default: 12, min: 1, max: 168 },
+    // No default, so a document from before minutes existed can be migrated.
+    intervalMinutes: { type: Number, min: 10, max: 10080 },
+    intervalHours: { type: Number },
     enabled: { type: Boolean, default: false },
     lastRunAt: { type: Date, default: null },
     lastStatus: { type: String, enum: ['success', 'failed', 'running', null], default: null },
@@ -27,6 +29,8 @@ const ScraperSettingsSchema = new Schema<ScraperSettingsDocument>(
   { timestamps: true }
 );
 
+const DEFAULT_INTERVAL_HOURS = 12;
+
 export const ScraperSettings = mongoose.model<ScraperSettingsDocument>('scraper_settings', ScraperSettingsSchema);
 
 /** The collection holds a single document; create it on first access. */
@@ -34,12 +38,20 @@ export async function getSettingsDoc() {
   const existing = await ScraperSettings.findOne();
   if (existing) {
     // Migrate the old single-URL setting.
+    let migrated = false;
     if (existing.yad2Url && existing.yad2Urls.length === 0) {
       existing.yad2Urls = [existing.yad2Url];
       existing.yad2Url = undefined;
-      await existing.save();
+      migrated = true;
     }
+    // Migrate the old hours setting.
+    if (existing.intervalMinutes == null) {
+      existing.intervalMinutes = (existing.intervalHours ?? DEFAULT_INTERVAL_HOURS) * 60;
+      existing.intervalHours = undefined;
+      migrated = true;
+    }
+    if (migrated) await existing.save();
     return existing;
   }
-  return ScraperSettings.create({});
+  return ScraperSettings.create({ intervalMinutes: DEFAULT_INTERVAL_HOURS * 60 });
 }

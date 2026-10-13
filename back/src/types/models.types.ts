@@ -40,7 +40,9 @@ export interface ScraperSettingsDocument extends Document {
   yad2Urls: string[];
   /** @deprecated single-URL setting, migrated into yad2Urls on read */
   yad2Url?: string;
-  intervalHours: number;
+  intervalMinutes: number;
+  /** @deprecated migrated into intervalMinutes on read */
+  intervalHours?: number;
   enabled: boolean;
   lastRunAt?: Date | null;
   lastStatus?: ScrapeStatus | null;

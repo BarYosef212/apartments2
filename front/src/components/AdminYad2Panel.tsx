@@ -11,14 +11,17 @@ import {
   ScraperStatus,
 } from '../types/scraper.types';
 
+// Values in minutes.
 const INTERVAL_OPTIONS = [
-  { value: 1, label: 'כל שעה' },
-  { value: 3, label: 'כל 3 שעות' },
-  { value: 6, label: 'כל 6 שעות' },
-  { value: 12, label: 'כל 12 שעות' },
-  { value: 24, label: 'פעם ביום' },
-  { value: 48, label: 'כל יומיים' },
-  { value: 168, label: 'פעם בשבוע' },
+  { value: 10, label: 'כל 10 דקות' },
+  { value: 30, label: 'כל חצי שעה' },
+  { value: 60, label: 'כל שעה' },
+  { value: 180, label: 'כל 3 שעות' },
+  { value: 360, label: 'כל 6 שעות' },
+  { value: 720, label: 'כל 12 שעות' },
+  { value: 1440, label: 'פעם ביום' },
+  { value: 2880, label: 'כל יומיים' },
+  { value: 10080, label: 'פעם בשבוע' },
 ];
 
 const STATUS_LABELS: Record<NonNullable<ScrapeStatus>, string> = {
@@ -38,7 +41,7 @@ const MAX_URLS = 20;
 
 const EMPTY_FORM: ScraperSettingsInput = {
   yad2Urls: [],
-  intervalHours: 12,
+  intervalMinutes: 720,
   enabled: false,
 };
 
@@ -98,7 +101,7 @@ function errorMessage(err: unknown, fallback: string) {
 function toForm(settings: Partial<ScraperSettingsInput>): ScraperSettingsInput {
   return {
     yad2Urls: settings.yad2Urls ?? [],
-    intervalHours: settings.intervalHours ?? 12,
+    intervalMinutes: settings.intervalMinutes ?? 720,
     enabled: Boolean(settings.enabled),
   };
 }
@@ -319,9 +322,9 @@ export function AdminYad2Panel() {
                 </label>
                 <Select
                   id='interval'
-                  value={form.intervalHours}
+                  value={form.intervalMinutes}
                   onChange={(e) =>
-                    setForm({ ...form, intervalHours: Number(e.target.value) })
+                    setForm({ ...form, intervalMinutes: Number(e.target.value) })
                   }
                 >
                   {INTERVAL_OPTIONS.map((opt) => (

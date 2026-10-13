@@ -4,8 +4,8 @@ import { ScrapeLog } from '../models/ScrapeLog.model';
 import { isScrapeRunning, ScrapeAlreadyRunningError, startScrapeInBackground } from '../services/yad2Scraper.service';
 import { reschedule } from '../services/scheduler.service';
 
-const MIN_INTERVAL = 1;
-const MAX_INTERVAL = 168;
+const MIN_INTERVAL_MINUTES = 10;
+const MAX_INTERVAL_MINUTES = 7 * 24 * 60;
 const MAX_URLS = 20;
 
 function validYad2Url(value: string): boolean {
@@ -30,7 +30,7 @@ export class ScraperController {
 
   async handleUpdateSettings(req: Request, res: Response) {
     try {
-      const { yad2Urls, intervalHours, enabled } = req.body ?? {};
+      const { yad2Urls, intervalMinutes, enabled } = req.body ?? {};
       const s = await getSettingsDoc();
 
       if (yad2Urls !== undefined) {
@@ -46,12 +46,14 @@ export class ScraperController {
         }
         s.yad2Urls = urls;
       }
-      if (intervalHours !== undefined) {
-        const n = Number(intervalHours);
-        if (!Number.isFinite(n) || n < MIN_INTERVAL || n > MAX_INTERVAL) {
-          return res.status(400).json({ message: `intervalHours must be between ${MIN_INTERVAL} and ${MAX_INTERVAL}` });
+      if (intervalMinutes !== undefined) {
+        const n = Number(intervalMinutes);
+        if (!Number.isInteger(n) || n < MIN_INTERVAL_MINUTES || n > MAX_INTERVAL_MINUTES) {
+          return res.status(400).json({
+            message: `intervalMinutes must be between ${MIN_INTERVAL_MINUTES} and ${MAX_INTERVAL_MINUTES}`,
+          });
         }
-        s.intervalHours = n;
+        s.intervalMinutes = n;
       }
       if (enabled !== undefined) {
         if (typeof enabled !== 'boolean') return res.status(400).json({ message: 'enabled must be boolean' });
