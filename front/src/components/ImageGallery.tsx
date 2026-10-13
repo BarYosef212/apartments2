@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HOUSE_PLACEHOLDER_IMAGE } from '../config/constants';
+import { sizedImage } from '../lib/format';
 
 export function ImageGallery({ images, alt }: { images: string[]; alt: string }) {
   const photos = images.length > 0 ? images : [HOUSE_PLACEHOLDER_IMAGE];
@@ -30,7 +31,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
       >
         <div className='aspect-[16/10] w-full'>
           <img
-            src={photos[index]}
+            src={sizedImage(photos[index], 1600)}
             alt={`${alt}, תמונה ${index + 1}`}
             className='h-full w-full object-cover'
           />
@@ -78,7 +79,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
               )}
             >
               <img
-                src={src}
+                src={sizedImage(src, 800)}
                 alt=''
                 loading='lazy'
                 className='h-full w-full object-cover'

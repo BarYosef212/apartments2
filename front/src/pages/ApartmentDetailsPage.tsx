@@ -5,15 +5,8 @@ import { Button, Badge } from '../components/ui';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
 import { useChat } from '../contexts/ChatContext';
 import { ImageGallery } from '../components/ImageGallery';
+import { formatPrice } from '../lib/format';
 
-function formatPrice(value: number) {
-  if (Number.isNaN(value)) return value;
-  return value.toLocaleString('he-IL', {
-    style: 'currency',
-    currency: 'ILS',
-    maximumFractionDigits: 0,
-  });
-}
 
 export function ApartmentDetailsPage() {
   const { id } = useParams<{ id: string }>();

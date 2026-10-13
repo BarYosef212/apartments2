@@ -2,15 +2,8 @@ import { Card, CardContent, CardHeader, Badge } from './ui';
 import { Link } from 'react-router-dom';
 import { Apartment } from '../types/apartment.types';
 import { HOUSE_PLACEHOLDER_IMAGE } from '../config/constants';
+import { formatPrice, sizedImage } from '../lib/format';
 
-function formatPrice(value: number) {
-  if (Number.isNaN(value)) return value;
-  return value.toLocaleString('he-IL', {
-    style: 'currency',
-    currency: 'ILS',
-    maximumFractionDigits: 0,
-  });
-}
 
 export function ApartmentCard({
   apartment,
@@ -29,7 +22,7 @@ export function ApartmentCard({
         <div className='relative w-full overflow-hidden bg-muted'>
           <div className='aspect-[4/3] w-full'>
             <img
-              src={apartment.img || HOUSE_PLACEHOLDER_IMAGE}
+              src={apartment.img ? sizedImage(apartment.img, 800) : HOUSE_PLACEHOLDER_IMAGE}
               alt={apartment.street}
               className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]'
             />

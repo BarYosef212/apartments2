@@ -120,7 +120,9 @@ export function mapListing(raw: Record<string, any>): Yad2Listing | null {
   const images: string[] = [];
   const pushImg = (v: unknown) => {
     const s = typeof v === 'string' ? v : textOf(asObj(v)?.src ?? asObj(v)?.url);
-    if (s && /^https?:\/\//.test(s) && !images.includes(s)) images.push(s);
+    if (!s || !/^https?:\/\//.test(s)) return;
+    const clean = stripImageParams(s);
+    if (!images.includes(clean)) images.push(clean);
   };
   pushImg(meta.coverImage);
   for (const arr of [meta.images, raw.images, raw.imagesUrls]) {
@@ -177,6 +179,14 @@ async function launch(): Promise<BrowserContext> {
   });
 }
 
+/**
+ * Yad2 serves a 640px image by default and resizes on request (?w=&h=&c=9),
+ * so store the bare URL and let the site pick the size.
+ */
+function stripImageParams(url: string) {
+  return /^https:\/\/img\.yad2\.co\.il\//.test(url) ? url.split('?')[0] : url;
+}
+
 const YAD2_IMAGE_RE = /^https:\/\/img\.yad2\.co\.il\/.+\.(jpe?g|png|webp)(\?.*)?$/i;
 
 /** Collect Yad2 image URLs under `node`, without descending into other listings. */
@@ -184,8 +194,8 @@ function collectImages(node: unknown, externalId: string, out: Map<string, strin
   if (depth > 15 || node == null) return;
   if (typeof node === 'string') {
     if (YAD2_IMAGE_RE.test(node)) {
-      const key = node.split('?')[0];
-      if (!out.has(key)) out.set(key, node);
+      const clean = stripImageParams(node);
+      if (!out.has(clean)) out.set(clean, clean);
     }
     return;
   }
@@ -216,6 +226,32 @@ function findItemObjects(root: unknown, externalId: string): Record<string, any>
   };
   walk(root, 0);
   return out;
+}
+
+const MAX_LIST_PAGES = 30;
+const LIST_PAGE_DELAY_MS = 3000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Agency pages are paginated ({ pagination: { totalPages } }, ?page=N). */
+function findTotalPages(root: unknown): number {
+  let total = 1;
+  const seen = new Set<unknown>();
+  const walk = (node: unknown, depth: number) => {
+    if (!node || typeof node !== 'object' || depth > 25 || seen.has(node)) return;
+    seen.add(node);
+    const o = asObj(node);
+    if (o && typeof o.totalPages === 'number') total = Math.max(total, o.totalPages);
+    for (const v of Object.values(node as Record<string, unknown>)) walk(v, depth + 1);
+  };
+  walk(root, 0);
+  return total;
+}
+
+function withPage(url: string, page: number) {
+  const u = new URL(url);
+  u.searchParams.set('page', String(page));
+  return u.toString();
 }
 
 /** Opens `url`, waits for it to settle, and returns its HTML plus Yad2 JSON responses. */
@@ -264,7 +300,13 @@ export async function openYad2Session(): Promise<Yad2Session> {
 
   return {
     async extractListings(url) {
-      const { json } = await loadPage(page, url);
+      const first = await loadPage(page, url);
+      const json = [...first.json];
+      const totalPages = Math.min(Math.max(...first.json.map(findTotalPages), 1), MAX_LIST_PAGES);
+      for (let n = 2; n <= totalPages; n++) {
+        await sleep(LIST_PAGE_DELAY_MS);
+        json.push(...(await loadPage(page, withPage(url, n))).json);
+      }
       const raws = json.flatMap((j) => findListingObjects(j));
       const mapped = raws.map(mapListing).filter((x): x is Yad2Listing => !!x);
       return { listings: dedupe(mapped), candidates: raws.length };

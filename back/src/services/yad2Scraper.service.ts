@@ -38,7 +38,7 @@ async function tryEmbed(data: Record<string, any>): Promise<number[] | undefined
 
 function toDoc(l: Yad2Listing) {
   return {
-    price: l.price,
+    price: l.price ?? 0,
     city: l.city,
     street: l.street,
     type: l.type,
@@ -52,11 +52,10 @@ function toDoc(l: Yad2Listing) {
   };
 }
 
+// Price is optional: agencies often list "price on request" (price 0).
 function isValid(l: Yad2Listing) {
-  return !!(l.price && l.price > 0 && l.street && l.city && l.type);
+  return !!(l.street && l.city && l.type);
 }
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Visits the item page of listings that are new, changed in price, or not
@@ -74,13 +73,13 @@ async function fetchGalleries(session: Yad2Session, listings: Yad2Listing[]): Pr
   const due = listings
     .filter((l) => {
       const e = byId.get(l.externalId);
-      return !e || !e.detailsFetchedAt || e.detailsFetchedAt.getTime() < staleBefore || e.price !== l.price;
+      return !e || !e.detailsFetchedAt || e.detailsFetchedAt.getTime() < staleBefore || e.price !== (l.price ?? 0);
     })
     .slice(0, MAX_ITEM_PAGES_PER_RUN);
 
   const fetched = new Set<string>();
   for (const [i, l] of due.entries()) {
-    if (i > 0) await sleep(ITEM_PAGE_DELAY_MS);
+    if (i > 0) await new Promise((r) => setTimeout(r, ITEM_PAGE_DELAY_MS));
     try {
       const images = await session.extractItemImages(l);
       if (images.length > 0) l.images = images;
