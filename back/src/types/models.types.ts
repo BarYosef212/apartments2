@@ -62,3 +62,26 @@ export interface UserDocument extends Document {
   password: string;
   role: 'admin';
 }
+
+export interface SiteContact {
+  phone: string;
+  whatsapp: string;
+  email: string;
+  address: string;
+  license: string;
+}
+
+export interface SiteTexts {
+  heroEyebrow: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  ownersTitle: string;
+  ownersText: string;
+}
+
+export interface SiteSettingsDocument extends Document {
+  heroMedia: { kind: 'image' | 'video'; url: string };
+  ownersImage: string;
+  texts: SiteTexts;
+  contact: SiteContact;
+}

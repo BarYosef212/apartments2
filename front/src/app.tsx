@@ -7,9 +7,11 @@ import { AppLayout } from './components/AppLayout';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { ChatProvider } from './contexts/ChatContext';
+import { SiteSettingsProvider } from './contexts/SiteSettingsContext';
 
 export default function App() : JSX.Element {
   return (
+    <SiteSettingsProvider>
     <ChatProvider>
       <BrowserRouter>
         <Routes>
@@ -58,6 +60,7 @@ export default function App() : JSX.Element {
       </Routes>
     </BrowserRouter>
     </ChatProvider>
+    </SiteSettingsProvider>
   );
 }
 

@@ -8,7 +8,8 @@ import { useChat } from '../contexts/ChatContext';
 import { ImageGallery } from '../components/ImageGallery';
 import { DEAL_TYPE_LABELS } from '../lib/format';
 import { PriceTag } from '../components/PriceTag';
-import { CONTACT } from '@/config/constants';
+import { useSiteSettings } from '../contexts/SiteSettingsContext';
+import { whatsappUrl } from '../lib/format';
 
 
 export function ApartmentDetailsPage() {
@@ -16,6 +17,7 @@ export function ApartmentDetailsPage() {
   const navigate = useNavigate();
   const { fetchApartmentsById } = useApartmentsApi();
   const { setIsOpen, setIsAgentMode, sendMessage, setInput,isAgentMode } = useChat();
+  const contact = useSiteSettings().settings?.contact;
   const [apartment, setApartment] = useState<Apartment | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,12 +141,24 @@ export function ApartmentDetailsPage() {
               <Button onClick={scheduleViewing} size='lg' className='mt-8 w-full'>
                 תיאום ביקור בנכס
               </Button>
-              {CONTACT.phone && (
+              {contact?.phone && (
                 <a
-                  href={`tel:${CONTACT.phone}`}
+                  href={`tel:${contact.phone}`}
                   className='mt-3 flex min-h-12 w-full items-center justify-center border border-ink text-[15px] font-semibold hover:bg-ink hover:text-white'
                 >
-                  התקשרו: <span dir='ltr' className='ms-1.5'>{CONTACT.phone}</span>
+                  התקשרו: <span dir='ltr' className='ms-1.5'>{contact.phone}</span>
+                </a>
+              )}
+              {contact?.whatsapp && (
+                <a
+                  href={`${whatsappUrl(contact.whatsapp)}?text=${encodeURIComponent(
+                    `שלום, אשמח לפרטים על הנכס ברחוב ${apartment.street}, ${apartment.city}`,
+                  )}`}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='mt-3 flex min-h-12 w-full items-center justify-center border border-ink text-[15px] font-semibold hover:bg-ink hover:text-white'
+                >
+                  שליחת הודעה בוואטסאפ
                 </a>
               )}
               <p className='mt-6 text-sm leading-relaxed text-taupe'>

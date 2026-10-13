@@ -4,6 +4,8 @@ import cors from 'cors';
 import apartmentsRouter from './routes/apartments.routes';
 import authRouter from './routes/auth.routes';
 import scraperRouter from './routes/scraper.routes';
+import { adminSiteRouter, publicSiteRouter } from './routes/site.routes';
+import { UPLOADS_DIR } from './services/uploads.service';
 import { reschedule } from './services/scheduler.service';
 import { markInterruptedScans } from './services/yad2Scraper.service';
 import session from 'express-session'
@@ -35,6 +37,16 @@ app.use(express.json());
 app.use('/auth', authRouter);
 app.use('/apartments', apartmentsRouter);
 app.use('/admin/scraper', scraperRouter);
+app.use('/site-settings', publicSiteRouter);
+app.use('/admin/site', adminSiteRouter);
+app.use(
+  '/uploads',
+  express.static(UPLOADS_DIR, {
+    maxAge: '7d',
+    index: false,
+    setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+  })
+);
 
 async function start() {
   try {

@@ -4,9 +4,10 @@ import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
 import { useChat } from '../contexts/ChatContext';
-import { DEAL_TYPE_LABELS, formatPrice, sizedImage } from '../lib/format';
+import { DEAL_TYPE_LABELS, formatPrice, mediaUrl, sizedImage } from '../lib/format';
+import { useSiteSettings } from '../contexts/SiteSettingsContext';
 import { Apartment, DealType } from '../types/apartment.types';
-import { CONTACT, SERVICE_AREAS } from '@/config/constants';
+import { SiteSettings } from '../types/site.types';
 
 // Enough to see every listing; the office has a few dozen at most.
 const ALL_LISTINGS_LIMIT = '200';
@@ -52,6 +53,7 @@ export function HomePage() {
   const { hash } = useLocation();
   const { fetchApartments } = useApartmentsApi();
   const { setIsOpen, setIsAgentMode, setInput } = useChat();
+  const { settings } = useSiteSettings();
 
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -73,6 +75,11 @@ export function HomePage() {
   }, [hash, isLoaded]);
 
   const { hero, featured, owners } = pickShowcase(apartments);
+  const texts = settings?.texts;
+  const phone = settings?.contact.phone;
+  const ownersPhoto = settings?.ownersImage
+    ? mediaUrl(settings.ownersImage)
+    : owners && sizedImage(coverOf(owners), 1600);
   const cities = [...new Set(apartments.map((a) => a.city))].sort();
   const counts = {
     sale: apartments.filter((a) => a.dealType === 'sale').length,
@@ -97,29 +104,24 @@ export function HomePage() {
     <div>
       {/* Hero */}
       <section className='relative h-[min(820px,100svh)] min-h-[620px] overflow-hidden bg-ink'>
-        {hero && (
-          <img
-            src={sizedImage(coverOf(hero), 1600)}
-            alt={`${hero.street}, ${hero.city}`}
-            className='absolute inset-0 h-full w-full object-cover'
-          />
-        )}
+        {settings && <HeroMedia settings={settings} fallback={hero} />}
         <div className='absolute inset-0 bg-[rgba(18,17,15,0.5)]' />
         <div className='absolute inset-x-0 bottom-28 md:bottom-36'>
           <div className='mx-auto max-w-7xl px-5 md:px-10'>
-            <p className={cn(EYEBROW, 'text-[#E7DCC8]')}>
-              <span className='block h-px w-10 bg-brass-light' />
-              {SERVICE_AREAS}
-            </p>
-            <h1 className='mt-5 max-w-4xl font-display text-[clamp(64px,9.5vw,130px)] font-light leading-[0.95] text-white'>
-              הבית הבא שלכם,
-              <br />
-              בידיים הנכונות.
+            {texts?.heroEyebrow && (
+              <p className={cn(EYEBROW, 'text-[#E7DCC8]')}>
+                <span className='block h-px w-10 bg-brass-light' />
+                {texts.heroEyebrow}
+              </p>
+            )}
+            <h1 className='mt-5 max-w-4xl whitespace-pre-line font-display text-[clamp(64px,9.5vw,130px)] font-light leading-[0.95] text-white'>
+              {texts?.heroTitle}
             </h1>
-            <p className='mt-6 max-w-lg text-lg font-light leading-relaxed text-[#EDE8DF] md:text-xl'>
-              משרד תיווך בוטיק. מעט נכסים, הרבה תשומת לב, וליווי אישי מהביקור
-              הראשון ועד מסירת המפתח.
-            </p>
+            {texts?.heroSubtitle && (
+              <p className='mt-6 max-w-lg whitespace-pre-line text-lg font-light leading-relaxed text-[#EDE8DF] md:text-xl'>
+                {texts.heroSubtitle}
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -277,11 +279,11 @@ export function HomePage() {
       {/* Owners */}
       <section id='owners' className='scroll-mt-20 bg-ink text-white'>
         <div className='flex flex-wrap'>
-          {owners && (
+          {ownersPhoto && (
             <div className='relative min-h-[360px] flex-[1_1_480px] bg-[#2A2925] md:min-h-[560px]'>
               <img
-                src={sizedImage(coverOf(owners), 1600)}
-                alt={`${owners.street}, ${owners.city}`}
+                src={ownersPhoto}
+                alt=''
                 loading='lazy'
                 className='absolute inset-0 h-full w-full object-cover'
               />
@@ -292,15 +294,14 @@ export function HomePage() {
               <span className='block h-px w-8 bg-brass-light' />
               לבעלי נכסים
             </p>
-            <h2 className='mt-5 font-display text-[clamp(52px,5vw,72px)] font-light leading-none'>
-              מוכרים או משכירים?
-              <br />
-              נמצא את הקונה הנכון.
+            <h2 className='mt-5 whitespace-pre-line font-display text-[clamp(52px,5vw,72px)] font-light leading-none'>
+              {texts?.ownersTitle}
             </h2>
-            <p className='mt-7 max-w-md text-lg font-light leading-relaxed text-[#CFC8BC]'>
-              אנחנו מצלמים, מתמחרים ומשווקים כל נכס באופן אישי, ומלווים אתכם
-              עד החתימה. פגישת הערכה ראשונה ללא התחייבות.
-            </p>
+            {texts?.ownersText && (
+              <p className='mt-7 max-w-md whitespace-pre-line text-lg font-light leading-relaxed text-[#CFC8BC]'>
+                {texts.ownersText}
+              </p>
+            )}
             <div className='mt-11 flex flex-wrap items-center gap-7'>
               <button
                 type='button'
@@ -309,12 +310,12 @@ export function HomePage() {
               >
                 לתיאום פגישת הערכה
               </button>
-              {CONTACT.phone && (
+              {phone && (
                 <a
-                  href={`tel:${CONTACT.phone}`}
+                  href={`tel:${phone}`}
                   className='inline-flex min-h-11 items-center border-b border-white/50 text-[17px] hover:border-white'
                 >
-                  או התקשרו: <span dir='ltr' className='ms-1.5'>{CONTACT.phone}</span>
+                  או התקשרו: <span dir='ltr' className='ms-1.5'>{phone}</span>
                 </a>
               )}
             </div>
@@ -403,4 +404,39 @@ function FeaturedListing({
       </div>
     </Link>
   );
+}
+
+/**
+ * The opening image or video chosen in the admin, or else the photo of the
+ * priciest listing.
+ */
+function HeroMedia({
+  settings,
+  fallback,
+}: {
+  settings: SiteSettings;
+  fallback?: Apartment;
+}) {
+  const { kind, url } = settings.heroMedia;
+  const fallbackSrc = fallback && sizedImage(coverOf(fallback), 1600);
+  const cover = 'absolute inset-0 h-full w-full object-cover';
+
+  if (url && kind === 'video') {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return (
+      <video
+        src={mediaUrl(url)}
+        poster={fallbackSrc}
+        autoPlay={!reduceMotion}
+        muted
+        loop
+        playsInline
+        aria-hidden='true'
+        className={cover}
+      />
+    );
+  }
+  const src = url ? mediaUrl(url) : fallbackSrc;
+  if (!src) return null;
+  return <img src={src} alt='' className={cover} />;
 }

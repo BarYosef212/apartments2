@@ -1,10 +1,16 @@
 import { Link } from 'react-router-dom';
-import { COMPANY_NAME, CONTACT, SERVICE_AREAS } from '@/config/constants';
+import { COMPANY_NAME } from '@/config/constants';
+import { useSiteSettings } from '../contexts/SiteSettingsContext';
+import { whatsappUrl } from '../lib/format';
 
 const LABEL = 'mb-1 text-[13px] font-semibold tracking-[0.08em] text-taupe';
 
 export function SiteFooter() {
-  const hasContact = CONTACT.phone || CONTACT.email || CONTACT.address;
+  const { settings } = useSiteSettings();
+  const contact = settings?.contact;
+  const areas = settings?.texts.heroEyebrow.replace(/ · /g, ', ');
+  const hasContact =
+    contact && (contact.phone || contact.whatsapp || contact.email || contact.address);
 
   return (
     <footer className='border-t border-line bg-sand'>
@@ -13,7 +19,7 @@ export function SiteFooter() {
           <div className='min-w-[260px] flex-1'>
             <p className='font-display text-5xl leading-none'>{COMPANY_NAME}</p>
             <p className='mt-4 max-w-sm leading-relaxed text-taupe'>
-              תיווך נדל״ן למכירה ולהשכרה. {SERVICE_AREAS.replace(/ · /g, ', ')}.
+              תיווך נדל״ן למכירה ולהשכרה{areas ? `. ${areas}.` : '.'}
             </p>
           </div>
           <nav aria-label='ניווט בתחתית' className='flex flex-col gap-3.5'>
@@ -31,23 +37,33 @@ export function SiteFooter() {
           {hasContact && (
             <address className='flex flex-col gap-3.5 not-italic'>
               <p className={LABEL}>יצירת קשר</p>
-              {CONTACT.phone && (
-                <a href={`tel:${CONTACT.phone}`} dir='ltr' className='text-right hover:opacity-70'>
-                  {CONTACT.phone}
+              {contact.phone && (
+                <a href={`tel:${contact.phone}`} dir='ltr' className='text-right hover:opacity-70'>
+                  {contact.phone}
                 </a>
               )}
-              {CONTACT.email && (
-                <a href={`mailto:${CONTACT.email}`} className='hover:opacity-70'>
-                  {CONTACT.email}
+              {contact.whatsapp && (
+                <a
+                  href={whatsappUrl(contact.whatsapp)}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='hover:opacity-70'
+                >
+                  וואטסאפ
                 </a>
               )}
-              {CONTACT.address && <span>{CONTACT.address}</span>}
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className='hover:opacity-70'>
+                  {contact.email}
+                </a>
+              )}
+              {contact.address && <span>{contact.address}</span>}
             </address>
           )}
         </div>
         <div className='mt-16 flex flex-wrap justify-between gap-4 border-t border-line pt-7 text-sm text-taupe'>
           <span>© {COMPANY_NAME}</span>
-          {CONTACT.license && <span>רישיון תיווך {CONTACT.license}</span>}
+          {contact?.license && <span>רישיון תיווך {contact.license}</span>}
         </div>
       </div>
     </footer>
