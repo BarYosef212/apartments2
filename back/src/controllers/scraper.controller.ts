@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { getSettingsDoc } from '../models/ScraperSettings.model';
 import { ScrapeLog } from '../models/ScrapeLog.model';
 import { isScrapeRunning, ScrapeAlreadyRunningError, startScrapeInBackground } from '../services/yad2Scraper.service';
-import { reschedule } from '../services/scheduler.service';
+import { nextRunAt, reschedule } from '../services/scheduler.service';
 
 const MIN_INTERVAL_MINUTES = 10;
 const MAX_INTERVAL_MINUTES = 7 * 24 * 60;
@@ -96,6 +96,7 @@ export class ScraperController {
         lastStatus: s.lastStatus,
         lastError: s.lastError,
         lastResult: s.lastResult,
+        nextRunAt: nextRunAt(s),
       });
     } catch (error) {
       console.error('Error fetching scraper status', error);
