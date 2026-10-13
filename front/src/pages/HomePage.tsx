@@ -1,186 +1,225 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button, Select } from '../components/ui';
-import { ApartmentCard } from '../components/ApartmentCard';
-import { CarouselSpacing } from '../components/CarouselSpacing';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
 import { useChat } from '../contexts/ChatContext';
-import { sizedImage } from '../lib/format';
+import { DEAL_TYPE_LABELS, formatPrice, sizedImage } from '../lib/format';
 import { Apartment, DealType } from '../types/apartment.types';
-import { COMPANY_NAME } from '@/config/constants';
+import { CONTACT, SERVICE_AREAS } from '@/config/constants';
 
-const LATEST_COUNT = 6;
+// Enough to see every listing; the office has a few dozen at most.
+const ALL_LISTINGS_LIMIT = '200';
+const FEATURED_COUNT = 3;
 
-const DEAL_OPTIONS: { value: DealType; label: string }[] = [
-  { value: 'sale', label: 'לקנות' },
-  { value: 'rent', label: 'לשכור' },
-];
+const EYEBROW =
+  'flex items-center gap-3.5 text-sm font-semibold tracking-[0.08em]';
+const FIELD_LABEL = 'text-[13px] font-semibold tracking-[0.06em] text-taupe';
+const FIELD_SELECT =
+  'h-11 w-full border-0 border-b border-ink bg-transparent p-0 text-lg focus:outline-none focus-visible:border-b-2';
 
-interface Stats {
-  sale: number;
-  rent: number;
-  cities: number;
-}
+const coverOf = (a: Apartment) => a.images?.[0] || a.img;
 
-/** Up to three distinct cover photos for the hero collage. */
-function heroPhotos(apartments: Apartment[]) {
-  const photos: { src: string; apartment: Apartment }[] = [];
-  for (const apartment of apartments) {
-    const src = apartment.images?.[0] || apartment.img;
-    if (src) photos.push({ src, apartment });
-    if (photos.length === 3) break;
-  }
-  return photos;
+/**
+ * Picks the photos from the live listings: the most expensive sale listing
+ * leads the page, premium listings (then the priciest) are featured, and the
+ * newest rental illustrates the owners section.
+ */
+function pickShowcase(apartments: Apartment[]) {
+  const withPhoto = apartments.filter(coverOf);
+  const hero = [...withPhoto]
+    .filter((a) => a.dealType !== 'rent')
+    .sort((a, b) => (b.price || 0) - (a.price || 0))[0];
+
+  const rest = withPhoto.filter((a) => a !== hero);
+  const featured = [...rest]
+    .sort(
+      (a, b) =>
+        Number(!!b.premium) - Number(!!a.premium) ||
+        (b.price || 0) - (a.price || 0),
+    )
+    .slice(0, FEATURED_COUNT);
+
+  const owners =
+    rest.find((a) => a.dealType === 'rent' && !featured.includes(a)) ??
+    rest.find((a) => !featured.includes(a));
+
+  return { hero, featured, owners };
 }
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { fetchApartments, fetchCities, fetchPremiumProperties } =
-    useApartmentsApi();
+  const { hash } = useLocation();
+  const { fetchApartments } = useApartmentsApi();
   const { setIsOpen, setIsAgentMode, setInput } = useChat();
 
-  const [latest, setLatest] = useState<Apartment[]>([]);
-  const [premium, setPremium] = useState<Apartment[]>([]);
-  const [cities, setCities] = useState<string[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [dealType, setDealType] = useState<DealType>('sale');
   const [city, setCity] = useState('');
+  const [rooms, setRooms] = useState('');
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [latestRes, saleRes, rentRes, citiesRes] = await Promise.all([
-          fetchApartments({ page: '1', limit: String(LATEST_COUNT) }),
-          fetchApartments({ dealType: 'sale', page: '1', limit: '1' }),
-          fetchApartments({ dealType: 'rent', page: '1', limit: '1' }),
-          fetchCities(),
-        ]);
-        setLatest(latestRes.results);
-        setCities(citiesRes);
-        setStats({
-          sale: saleRes.totalResults,
-          rent: rentRes.totalResults,
-          cities: citiesRes.length,
-        });
-      } catch {
-        // The page still works as a search entry point without data.
-      } finally {
-        setIsLoading(false);
-      }
-      fetchPremiumProperties()
-        .then(setPremium)
-        .catch(() => {});
-    }
-    load();
+    fetchApartments({ page: '1', limit: ALL_LISTINGS_LIMIT })
+      .then((res) => setApartments(res.results))
+      .catch(() => {})
+      .finally(() => setIsLoaded(true));
   }, []);
+
+  // Links such as /#owners land here from other pages.
+  useEffect(() => {
+    if (!hash || !isLoaded) return;
+    document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' });
+  }, [hash, isLoaded]);
+
+  const { hero, featured, owners } = pickShowcase(apartments);
+  const cities = [...new Set(apartments.map((a) => a.city))].sort();
+  const counts = {
+    sale: apartments.filter((a) => a.dealType === 'sale').length,
+    rent: apartments.filter((a) => a.dealType === 'rent').length,
+  };
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     const params = new URLSearchParams({ dealType });
     if (city) params.set('city', city);
+    if (rooms) params.set('rooms', rooms);
     navigate(`/apartments?${params}`);
   }
 
   function openOwnerChat() {
     setIsAgentMode(true);
-    setInput('שלום, יש לי נכס ואשמח לשמוע על שיווק שלו');
+    setInput('שלום, יש לי נכס ואשמח לתאם פגישת הערכה');
     setIsOpen(true);
   }
 
-  const photos = heroPhotos(latest);
-
   return (
-    <div className='pb-16'>
+    <div>
       {/* Hero */}
-      <section className='mx-auto grid max-w-6xl items-center gap-10 px-4 pb-16 pt-6 md:grid-cols-2 md:gap-14 md:pt-12'>
-        <div className='text-right'>
-          <p className='text-sm font-medium text-muted-foreground'>
-            {COMPANY_NAME} · תיווך נדל״ן
-          </p>
-          <h1 className='mt-4 text-4xl font-bold leading-[1.1] tracking-tight text-gray-900 md:text-6xl'>
-            מוצאים בית,
-            <br />
-            בלי לחפש לבד.
-          </h1>
-          <p className='mt-5 max-w-md text-lg leading-relaxed text-gray-600'>
-            דירות למכירה ולהשכרה שאנחנו מכירים מקרוב, וליווי אישי מהשיחה
-            הראשונה ועד החתימה.
-          </p>
-
-          <form
-            onSubmit={handleSearch}
-            className='mt-8 rounded-2xl border border-border bg-white p-2 shadow-subtle'
-          >
-            <div className='flex flex-col gap-2 sm:flex-row'>
-              <div
-                role='radiogroup'
-                aria-label='סוג עסקה'
-                className='flex shrink-0 rounded-xl bg-muted p-1'
-              >
-                {DEAL_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type='button'
-                    role='radio'
-                    aria-checked={dealType === opt.value}
-                    onClick={() => setDealType(opt.value)}
-                    className={cn(
-                      'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-none',
-                      dealType === opt.value
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-muted-foreground hover:text-gray-900',
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <Select
-                aria-label='עיר'
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className='h-auto min-h-10 border-0 bg-transparent focus-visible:ring-offset-0'
-              >
-                <option value=''>כל הערים</option>
-                {cities.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </Select>
-              <Button type='submit' className='h-auto min-h-10 shrink-0 px-6'>
-                חיפוש
-              </Button>
-            </div>
-          </form>
+      <section className='relative h-[min(820px,100svh)] min-h-[620px] overflow-hidden bg-ink'>
+        {hero && (
+          <img
+            src={sizedImage(coverOf(hero), 1600)}
+            alt={`${hero.street}, ${hero.city}`}
+            className='absolute inset-0 h-full w-full object-cover'
+          />
+        )}
+        <div className='absolute inset-0 bg-[rgba(18,17,15,0.5)]' />
+        <div className='absolute inset-x-0 bottom-28 md:bottom-36'>
+          <div className='mx-auto max-w-7xl px-5 md:px-10'>
+            <p className={cn(EYEBROW, 'text-[#E7DCC8]')}>
+              <span className='block h-px w-10 bg-brass-light' />
+              {SERVICE_AREAS}
+            </p>
+            <h1 className='mt-5 max-w-4xl font-display text-[clamp(64px,9.5vw,130px)] font-light leading-[0.95] text-white'>
+              הבית הבא שלכם,
+              <br />
+              בידיים הנכונות.
+            </h1>
+            <p className='mt-6 max-w-lg text-lg font-light leading-relaxed text-[#EDE8DF] md:text-xl'>
+              משרד תיווך בוטיק. מעט נכסים, הרבה תשומת לב, וליווי אישי מהביקור
+              הראשון ועד מסירת המפתח.
+            </p>
+          </div>
         </div>
-
-        <HeroCollage photos={photos} isLoading={isLoading} />
       </section>
 
+      {/* Search */}
+      <div className='relative mx-auto -mt-16 max-w-7xl px-5 md:px-10'>
+        <form
+          onSubmit={handleSearch}
+          aria-label='חיפוש נכסים'
+          className='flex flex-wrap bg-white shadow-[0_24px_60px_rgba(25,25,23,0.12)]'
+        >
+          <fieldset className='flex min-w-[240px] flex-1 flex-col gap-2.5 px-7 py-5'>
+            <legend className={cn(FIELD_LABEL, 'float-right mb-2.5 w-full')}>
+              סוג עסקה
+            </legend>
+            <div className='flex gap-2'>
+              {(['sale', 'rent'] as DealType[]).map((value) => (
+                <button
+                  key={value}
+                  type='button'
+                  aria-pressed={dealType === value}
+                  onClick={() => setDealType(value)}
+                  className={cn(
+                    'min-h-11 flex-1 border px-4 text-[17px] font-semibold transition-colors',
+                    dealType === value
+                      ? 'border-ink bg-ink text-white'
+                      : 'border-line bg-white text-ink hover:border-ink',
+                  )}
+                >
+                  {DEAL_TYPE_LABELS[value]}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <div className='flex min-w-[200px] flex-1 flex-col gap-2.5 border-line px-7 py-5 sm:border-s'>
+            <label htmlFor='home-city' className={FIELD_LABEL}>
+              עיר
+            </label>
+            <select
+              id='home-city'
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className={FIELD_SELECT}
+            >
+              <option value=''>כל הערים</option>
+              {cities.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className='flex min-w-[160px] flex-1 flex-col gap-2.5 border-line px-7 py-5 sm:border-s'>
+            <label htmlFor='home-rooms' className={FIELD_LABEL}>
+              חדרים
+            </label>
+            <select
+              id='home-rooms'
+              value={rooms}
+              onChange={(e) => setRooms(e.target.value)}
+              className={FIELD_SELECT}
+            >
+              <option value=''>הכל</option>
+              {['2', '3', '4', '5'].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type='submit'
+            className='inline-flex min-h-[72px] flex-[1_1_100%] items-center justify-center gap-3 bg-ink px-8 text-lg font-semibold text-white transition-colors hover:bg-black sm:min-h-24 sm:flex-[0_1_220px]'
+          >
+            חיפוש נכסים
+            <ArrowLeft className='h-5 w-5' strokeWidth={1.5} />
+          </button>
+        </form>
+      </div>
+
       {/* Numbers */}
-      {stats && stats.sale + stats.rent > 0 && (
-        <section className='border-y border-border bg-gray-50/70'>
-          <dl className='mx-auto grid max-w-6xl grid-cols-3 divide-x divide-x-reverse divide-border px-4'>
+      {counts.sale + counts.rent > 0 && (
+        <section
+          aria-label='המשרד במספרים'
+          className='mx-auto max-w-7xl px-5 pt-24 md:px-10 md:pt-28'
+        >
+          <dl className='grid grid-cols-3 border-y border-line'>
             {[
-              { label: 'נכסים למכירה', value: stats.sale, deal: 'sale' },
-              { label: 'נכסים להשכרה', value: stats.rent, deal: 'rent' },
-              { label: 'ערים', value: stats.cities },
+              { value: counts.sale, label: 'נכסים למכירה', to: '/apartments?dealType=sale' },
+              { value: counts.rent, label: 'נכסים להשכרה', to: '/apartments?dealType=rent' },
+              { value: cities.length, label: 'ערים במרכז הארץ' },
             ].map((item) => (
-              <div key={item.label} className='py-6 text-center md:py-8'>
-                <dt className='text-xs text-muted-foreground md:text-sm'>
-                  {item.label}
-                </dt>
-                <dd className='mt-1 text-2xl font-bold tabular-nums text-gray-900 md:text-4xl'>
-                  {item.deal ? (
-                    <Link
-                      to={`/apartments?dealType=${item.deal}`}
-                      className='hover:underline hover:underline-offset-4'
-                    >
+              <div
+                key={item.label}
+                className='flex flex-col-reverse items-start gap-1 py-7 md:flex-row-reverse md:items-baseline md:justify-end md:gap-5 md:py-10'
+              >
+                <dt className='text-sm text-taupe md:text-lg'>{item.label}</dt>
+                <dd className='font-display text-6xl font-light leading-none tabular-nums md:text-8xl'>
+                  {item.to ? (
+                    <Link to={item.to} className='hover:opacity-70'>
                       {item.value}
                     </Link>
                   ) : (
@@ -193,161 +232,175 @@ export function HomePage() {
         </section>
       )}
 
-      {/* Latest listings */}
-      {latest.length > 0 && (
-        <section className='mx-auto max-w-6xl px-4 pt-16'>
-          <SectionHeader
-            title='נכנסו לאחרונה'
-            subtitle='הנכסים החדשים ביותר אצלנו'
-            linkTo='/apartments'
-            linkLabel='לכל הנכסים'
-          />
-          <div className='mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
-            {latest.map((apartment) => (
-              <ApartmentCard key={apartment._id} apartment={apartment} />
-            ))}
+      {/* Featured */}
+      {featured.length > 0 && (
+        <section
+          id='featured'
+          className='mx-auto max-w-7xl px-5 pb-28 pt-20 md:px-10 md:pb-32 md:pt-24'
+        >
+          <div className='flex flex-wrap items-end justify-between gap-6'>
+            <div>
+              <p className={cn(EYEBROW, 'text-brass')}>
+                <span className='block h-px w-8 bg-brass' />
+                הנבחרים שלנו
+              </p>
+              <h2 className='mt-4 font-display text-[clamp(52px,5.4vw,76px)] font-light leading-none'>
+                נכסים נבחרים
+              </h2>
+            </div>
+            <Link
+              to='/apartments'
+              className='inline-flex min-h-11 items-center gap-2.5 border-b border-ink text-[17px] font-semibold hover:opacity-70'
+            >
+              לכל {apartments.length} הנכסים
+              <ArrowLeft className='h-[18px] w-[18px]' strokeWidth={1.5} />
+            </Link>
           </div>
-        </section>
-      )}
 
-      {/* Premium */}
-      {premium.length > 0 && (
-        <section className='mx-auto max-w-6xl px-4 pt-20'>
-          <SectionHeader
-            title='בחירה שלנו'
-            subtitle='נכסים שאנחנו ממליצים לראות'
-          />
-          <CarouselSpacing properties={premium} />
+          <div className='mt-14 flex flex-wrap gap-10'>
+            <FeaturedListing
+              apartment={featured[0]}
+              large
+              className='min-w-0 flex-[999_1_560px]'
+            />
+            {featured.length > 1 && (
+              <div className='flex min-w-0 flex-[1_1_340px] flex-col gap-10'>
+                {featured.slice(1).map((apartment) => (
+                  <FeaturedListing key={apartment._id} apartment={apartment} />
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       )}
 
       {/* Owners */}
-      <section className='mx-auto max-w-6xl px-4 pt-20'>
-        <div className='flex flex-col items-start gap-6 rounded-3xl bg-gray-900 px-8 py-10 text-right text-white md:flex-row md:items-center md:justify-between md:px-12 md:py-14'>
-          <div>
-            <h2 className='text-2xl font-bold tracking-tight md:text-3xl'>
-              יש לכם נכס למכירה או להשכרה?
-            </h2>
-            <p className='mt-2 max-w-lg text-gray-300'>
-              ספרו לנו עליו, ונחזור אליכם עם הערכה ותוכנית שיווק.
+      <section id='owners' className='scroll-mt-20 bg-ink text-white'>
+        <div className='flex flex-wrap'>
+          {owners && (
+            <div className='relative min-h-[360px] flex-[1_1_480px] bg-[#2A2925] md:min-h-[560px]'>
+              <img
+                src={sizedImage(coverOf(owners), 1600)}
+                alt={`${owners.street}, ${owners.city}`}
+                loading='lazy'
+                className='absolute inset-0 h-full w-full object-cover'
+              />
+            </div>
+          )}
+          <div className='flex flex-[1_1_480px] flex-col justify-center px-[clamp(24px,6vw,112px)] py-20 md:py-28'>
+            <p className={cn(EYEBROW, 'text-brass-light')}>
+              <span className='block h-px w-8 bg-brass-light' />
+              לבעלי נכסים
             </p>
+            <h2 className='mt-5 font-display text-[clamp(52px,5vw,72px)] font-light leading-none'>
+              מוכרים או משכירים?
+              <br />
+              נמצא את הקונה הנכון.
+            </h2>
+            <p className='mt-7 max-w-md text-lg font-light leading-relaxed text-[#CFC8BC]'>
+              אנחנו מצלמים, מתמחרים ומשווקים כל נכס באופן אישי, ומלווים אתכם
+              עד החתימה. פגישת הערכה ראשונה ללא התחייבות.
+            </p>
+            <div className='mt-11 flex flex-wrap items-center gap-7'>
+              <button
+                type='button'
+                onClick={openOwnerChat}
+                className='inline-flex min-h-14 items-center bg-sand px-8 text-[17px] font-semibold text-ink transition-colors hover:bg-white'
+              >
+                לתיאום פגישת הערכה
+              </button>
+              {CONTACT.phone && (
+                <a
+                  href={`tel:${CONTACT.phone}`}
+                  className='inline-flex min-h-11 items-center border-b border-white/50 text-[17px] hover:border-white'
+                >
+                  או התקשרו: <span dir='ltr' className='ms-1.5'>{CONTACT.phone}</span>
+                </a>
+              )}
+            </div>
           </div>
-          <Button
-            type='button'
-            onClick={openOwnerChat}
-            size='lg'
-            className='shrink-0 bg-white text-gray-900 hover:bg-gray-100'
-          >
-            דברו איתנו
-          </Button>
         </div>
       </section>
     </div>
   );
 }
 
-function SectionHeader({
-  title,
-  subtitle,
-  linkTo,
-  linkLabel,
-}: {
-  title: string;
-  subtitle: string;
-  linkTo?: string;
-  linkLabel?: string;
-}) {
-  return (
-    <div className='flex items-end justify-between gap-4'>
-      <div className='text-right'>
-        <h2 className='text-2xl font-bold tracking-tight text-gray-900 md:text-3xl'>
-          {title}
-        </h2>
-        <p className='mt-1 text-muted-foreground'>{subtitle}</p>
-      </div>
-      {linkTo && (
-        <Link
-          to={linkTo}
-          className='inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-gray-900 hover:underline hover:underline-offset-4'
-        >
-          {linkLabel}
-          <ArrowLeft className='h-4 w-4' />
-        </Link>
-      )}
-    </div>
-  );
-}
-
-function HeroCollage({
-  photos,
-  isLoading,
-}: {
-  photos: { src: string; apartment: Apartment }[];
-  isLoading: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <div className='grid aspect-[5/4] grid-cols-5 grid-rows-2 gap-3'>
-        <div className='col-span-3 row-span-2 animate-pulse rounded-3xl bg-muted' />
-        <div className='col-span-2 animate-pulse rounded-3xl bg-muted' />
-        <div className='col-span-2 animate-pulse rounded-3xl bg-muted' />
-      </div>
-    );
-  }
-  if (photos.length === 0) return null;
-
-  const [main, ...rest] = photos;
-  return (
-    <div
-      className={cn(
-        'grid aspect-[5/4] gap-3',
-        rest.length > 0 && 'grid-cols-5 grid-rows-2',
-      )}
-    >
-      <CollagePhoto
-        photo={main}
-        className={cn(rest.length > 0 && 'col-span-3 row-span-2')}
-        label
-      />
-      {rest.map((photo) => (
-        <CollagePhoto
-          key={photo.apartment._id}
-          photo={photo}
-          className={cn('col-span-2', rest.length === 1 && 'row-span-2')}
-        />
-      ))}
-    </div>
-  );
-}
-
-function CollagePhoto({
-  photo,
+function FeaturedListing({
+  apartment,
+  large = false,
   className,
-  label = false,
 }: {
-  photo: { src: string; apartment: Apartment };
+  apartment: Apartment;
+  large?: boolean;
   className?: string;
-  label?: boolean;
 }) {
-  const { apartment } = photo;
+  const specs = [
+    apartment.type,
+    apartment.rooms && `${apartment.rooms} חדרים`,
+    apartment.size && `${apartment.size} מ״ר`,
+    large && apartment.floor != null && `קומה ${apartment.floor}`,
+  ].filter(Boolean);
+
   return (
     <Link
       to={`/apartments/${apartment._id}`}
-      className={cn(
-        'group relative overflow-hidden rounded-3xl bg-muted',
-        className,
-      )}
+      className={cn('group flex flex-col', className)}
     >
-      <img
-        src={sizedImage(photo.src, label ? 1600 : 800)}
-        alt={`${apartment.street}, ${apartment.city}`}
-        className='h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]'
-      />
-      {label && (
-        <span className='absolute bottom-4 right-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-900 backdrop-blur'>
-          {apartment.street}, {apartment.city}
-        </span>
-      )}
+      <div
+        className={cn(
+          'relative overflow-hidden bg-[#E6E0D6]',
+          large ? 'h-[clamp(320px,44vw,640px)]' : 'h-60',
+        )}
+      >
+        <img
+          src={sizedImage(coverOf(apartment), large ? 1600 : 800)}
+          alt={`${apartment.street}, ${apartment.city}`}
+          loading='lazy'
+          className='h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]'
+        />
+        {apartment.dealType && (
+          <span className='absolute right-4 top-4 bg-white px-3 py-1.5 text-[13px] font-semibold tracking-[0.06em]'>
+            {DEAL_TYPE_LABELS[apartment.dealType]}
+          </span>
+        )}
+      </div>
+      <div className='flex items-start justify-between gap-5 pt-5'>
+        <div className='min-w-0'>
+          <p
+            className={cn(
+              'truncate font-display font-light leading-none',
+              large ? 'text-5xl' : 'text-4xl',
+            )}
+          >
+            {apartment.street}
+          </p>
+          <p className={cn('mt-2 text-[#4A463F]', large ? 'text-lg' : 'text-base')}>
+            {apartment.city}
+          </p>
+          <p className={cn('mt-3 text-taupe', large ? 'text-[15px]' : 'text-sm')}>
+            {specs.join(' · ')}
+          </p>
+        </div>
+        {apartment.price ? (
+          <p
+            className={cn(
+              'whitespace-nowrap font-bold tabular-nums',
+              large ? 'text-[26px]' : 'text-xl',
+            )}
+          >
+            {formatPrice(apartment.price)}
+            {apartment.dealType === 'rent' && (
+              <span className='block text-left text-sm font-normal text-taupe'>
+                לחודש
+              </span>
+            )}
+          </p>
+        ) : (
+          <p className='whitespace-nowrap pt-1.5 text-[15px] text-taupe'>
+            {formatPrice(0)}
+          </p>
+        )}
+      </div>
     </Link>
   );
 }

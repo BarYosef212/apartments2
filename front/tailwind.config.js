@@ -4,20 +4,32 @@ module.exports = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ['Heebo', 'system-ui', 'sans-serif'],
+  			display: ['Karantina', 'Heebo', 'sans-serif']
+  		},
   		colors: {
+  			ink: '#191917',
+  			sand: '#F4F1EB',
+  			line: '#D9D2C6',
+  			taupe: '#625D55',
+  			brass: {
+  				DEFAULT: '#8A6A3E',
+  				light: '#C9AE84'
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'
   			},
-  			'card-foreground': '#020617',
+  			'card-foreground': '#191917',
   			border: 'hsl(var(--border))',
   			muted: {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'
   			},
-  			'muted-foreground': '#6b7280',
+  			'muted-foreground': '#625D55',
   			primary: {
   				DEFAULT: 'hsl(var(--primary))',
   				foreground: 'hsl(var(--primary-foreground))'

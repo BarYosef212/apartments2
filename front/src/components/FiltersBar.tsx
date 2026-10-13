@@ -32,7 +32,7 @@ export function FiltersBar({
   };    
 
   return (
-    <div className='sticky top-16 z-20 mb-6 border-b border-border bg-background/90 backdrop-blur'>
+    <div className='sticky top-20 z-20 mb-6 border-b border-border bg-background/90 backdrop-blur'>
       <div className='mx-auto flex max-w-6xl flex-col gap-3 py-4'>
         <div>
           <SearchInput
