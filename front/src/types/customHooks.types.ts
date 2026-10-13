@@ -1,4 +1,10 @@
 import { Apartment, ChatApartment } from './apartment.types';
+import {
+  ScrapeLog,
+  ScraperSettings,
+  ScraperSettingsInput,
+  ScraperStatus,
+} from './scraper.types';
 
 export interface ApartmentsResponse {
   results: Apartment[];
@@ -35,4 +41,12 @@ export interface ChatResponse {
 
 export interface UseChatApi {
   sendChatMessage: (message: string, isAgentMode: boolean) => Promise<ChatResponse>;
+}
+
+export interface UseScraperApi {
+  fetchSettings: () => Promise<ScraperSettings>;
+  saveSettings: (payload: ScraperSettingsInput) => Promise<ScraperSettings>;
+  fetchStatus: () => Promise<ScraperStatus>;
+  fetchLogs: (limit?: number) => Promise<ScrapeLog[]>;
+  runScan: () => Promise<void>;
 }

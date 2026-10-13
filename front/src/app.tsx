@@ -1,7 +1,7 @@
 import { ApartmentsListPage } from './pages/ApartmentsListPage';
 import { ApartmentDetailsPage } from './pages/ApartmentDetailsPage';
 import { LoginPage } from './pages/LoginPage';
-import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { AdminPage } from './pages/AdminPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -50,7 +50,7 @@ export default function App() : JSX.Element {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <AdminDashboardPage />
+                  <AdminPage />
                 </AppLayout>
               </ProtectedRoute>
             }
