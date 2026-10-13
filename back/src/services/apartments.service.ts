@@ -5,7 +5,7 @@ import { ApartmentFilters } from '../types/service.types';
 export async function getApartments(filters: ApartmentFilters) {
   const { search, city, type, rooms, minPrice, maxPrice,premium, page = 1, limit = 10 } = filters;
 
-  const query: any = {};
+  const query: any = { active: { $ne: false } };
 
   if (search) {
     const searchRegex = { $regex: search, $options: 'i' };

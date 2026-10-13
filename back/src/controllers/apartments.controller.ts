@@ -78,7 +78,7 @@ export class ApartmentsController {
 
   async handleGetPremiumProperties(req: Request, res: Response) {
     try {
-      const data = await Apartment.find({ premium: true }).limit(5)
+      const data = await Apartment.find({ premium: true, active: { $ne: false } }).limit(5)
       return res.json(data)
     } catch (error) {
       console.error(CONS.MSG_APARTMENTS_FETCH_ERROR, error);
