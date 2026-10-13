@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import apartmentsRouter from './routes/apartments.routes';
 import authRouter from './routes/auth.routes';
+import scraperRouter from './routes/scraper.routes';
+import { reschedule } from './services/scheduler.service';
 import session from 'express-session'
 import dotenv from 'dotenv';
 dotenv.config();
@@ -31,10 +33,12 @@ app.use(express.json());
 
 app.use('/auth', authRouter);
 app.use('/apartments', apartmentsRouter);
+app.use('/admin/scraper', scraperRouter);
 
 async function start() {
   try {
     await mongoose.connect(MONGO_URI);
+    await reschedule().catch((e) => console.error('Failed to start scheduler', e));
     app.listen(PORT, () => {
       console.info(`Server is running on http://localhost:${PORT}`);
     });
