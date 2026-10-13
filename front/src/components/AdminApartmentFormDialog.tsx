@@ -16,7 +16,8 @@ const emptyForm: ApartmentFormState = {
   floor: 0,
   size: '',
   tags: '',
-  premium:false
+  premium:false,
+  dealType: '',
 };
 
 export function AdminApartmentFormDialog({
@@ -47,6 +48,7 @@ export function AdminApartmentFormDialog({
         size: initialData.size,
         tags: initialData.tags.join(', '),
         premium: initialData.premium ? true : false,
+        dealType: initialData.dealType ?? '',
       });
     } else {
       setForm(emptyForm);
@@ -94,13 +96,14 @@ export function AdminApartmentFormDialog({
 
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-1'>
-              <FormLabel required={true}>מחיר</FormLabel>
+              <FormLabel required={false}>מחיר</FormLabel>
 
               <Input
-                value={form.price}
+                value={form.price || ''}
                 onChange={(e) => handleChange('price', e.target.value)}
-                placeholder='₪'
-                required
+                type='number'
+                min={0}
+                placeholder='₪ (ריק = לא צוין מחיר)'
               />
             </div>
             <div className='space-y-1'>
@@ -187,14 +190,16 @@ export function AdminApartmentFormDialog({
           </div>
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-1'>
-              <FormLabel required={true}>מחיר</FormLabel>
+              <FormLabel required={false}>סוג עסקה</FormLabel>
 
-              <Input
-                value={form.price}
-                onChange={(e) => handleChange('price', e.target.value)}
-                placeholder='₪'
-                required
-              />
+              <Select
+                value={form.dealType}
+                onChange={(e) => handleChange('dealType', e.target.value)}
+              >
+                <option value=''>לא צוין</option>
+                <option value='sale'>למכירה</option>
+                <option value='rent'>להשכרה</option>
+              </Select>
             </div>
             <div className='space-y-1'>
               <FormLabel required={false}>פרימיום</FormLabel>

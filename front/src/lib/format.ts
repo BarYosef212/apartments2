@@ -1,5 +1,12 @@
+import { DealType } from '../types/apartment.types';
+
+export const DEAL_TYPE_LABELS: Record<DealType, string> = {
+  sale: 'למכירה',
+  rent: 'להשכרה',
+};
+
 export function formatPrice(value: number) {
-  if (!value || Number.isNaN(value)) return 'מחיר לפי בקשה';
+  if (!value || Number.isNaN(value)) return 'לא צוין מחיר';
   return value.toLocaleString('he-IL', {
     style: 'currency',
     currency: 'ILS',

@@ -1,3 +1,5 @@
+export type DealType = 'sale' | 'rent';
+
 export interface Apartment {
   _id: string;
   img: string;
@@ -12,6 +14,7 @@ export interface Apartment {
   size: string;
   tags: string[];
   premium?: boolean;
+  dealType?: DealType;
 }
 
 export interface ChatApartment {

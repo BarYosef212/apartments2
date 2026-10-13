@@ -1,5 +1,7 @@
 import { Document } from 'mongoose';
 
+export type DealType = 'sale' | 'rent';
+
 export interface ApartmentDocument extends Document {
   img?: string;
   price: number;
@@ -12,6 +14,7 @@ export interface ApartmentDocument extends Document {
   size?: number;
   tags?: string[];
   premium?:boolean,
+  dealType?: DealType,
   embedding?: number[] | undefined;
   source?: 'manual' | 'yad2';
   externalId?: string;

@@ -1,6 +1,6 @@
 import { Button } from './ui';
 import { AdminApartmentRowProps } from '../types/component.types';
-import { formatPrice } from '../lib/format';
+import { DEAL_TYPE_LABELS, formatPrice } from '../lib/format';
 
 export function AdminApartmentRow({
   apartment,
@@ -16,6 +16,9 @@ export function AdminApartmentRow({
       <td className='py-2 pl-4'>{apartment.rooms}</td>
       <td className='py-2 pl-4'>{apartment.size}</td>
       <td className='py-2 pl-4'>{apartment.type}</td>
+      <td className='py-2 pl-4'>
+        {apartment.dealType ? DEAL_TYPE_LABELS[apartment.dealType] : '—'}
+      </td>
       <td className='py-2 pl-0 text-left'>
         <div className='flex justify-center gap-2'>
           <Button

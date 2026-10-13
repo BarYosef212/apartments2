@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, Badge } from './ui';
 import { Link } from 'react-router-dom';
 import { Apartment } from '../types/apartment.types';
 import { HOUSE_PLACEHOLDER_IMAGE } from '../config/constants';
-import { formatPrice, sizedImage } from '../lib/format';
+import { DEAL_TYPE_LABELS, formatPrice, sizedImage } from '../lib/format';
 
 
 export function ApartmentCard({
@@ -32,6 +32,11 @@ export function ApartmentCard({
               {apartment.images!.length} תמונות
             </span>
           )}
+          {apartment.dealType && (
+            <span className='absolute left-3 top-3 z-10 rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-gray-900'>
+              {DEAL_TYPE_LABELS[apartment.dealType]}
+            </span>
+          )}
           {premium && (
             <div className='absolute right-3 top-3 z-10'>
               <span className='rounded-full bg-amber-400/90 px-2 py-1 text-[10px] font-semibold text-white shadow-md'>
@@ -44,8 +49,19 @@ export function ApartmentCard({
       </CardHeader>
       <CardContent className='flex flex-1 flex-col gap-3'>
         <div className='flex items-baseline justify-between gap-2'>
-          <p className='text-2xl font-semibold tracking-tight text-gray-900'>
+          <p
+            className={
+              apartment.price
+                ? 'text-2xl font-semibold tracking-tight text-gray-900'
+                : 'text-base font-medium text-muted-foreground'
+            }
+          >
             {formatPrice(apartment.price)}
+            {apartment.dealType === 'rent' && apartment.price > 0 && (
+              <span className='mr-1 text-sm font-normal text-muted-foreground'>
+                לחודש
+              </span>
+            )}
           </p>
           <p className='text-xs font-medium tracking-wide text-muted-foreground'>
             {apartment.city}

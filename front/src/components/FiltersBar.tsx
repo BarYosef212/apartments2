@@ -11,6 +11,7 @@ export function FiltersBar({
   minPrice,
   maxPrice,
   premium,
+  dealType,
   cities = [],
   types = [],
   
@@ -26,6 +27,7 @@ export function FiltersBar({
       minPrice: '',
       maxPrice: '',
       premium: '',
+      dealType: '',
     });
   };    
 
@@ -43,9 +45,17 @@ export function FiltersBar({
         >
           <div
             className={`grid flex-1 gap-2 ${
-              admin ? 'grid-cols-4' : 'grid-cols-3'
+              admin ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'
             }`}
           >
+            <Select
+              value={dealType}
+              onChange={(e) => onChange({ dealType: e.target.value })}
+            >
+              <option value=''>מכירה והשכרה</option>
+              <option value='sale'>למכירה</option>
+              <option value='rent'>להשכרה</option>
+            </Select>
             <Select
               value={city}
               onChange={(e) => onChange({ city: e.target.value })}

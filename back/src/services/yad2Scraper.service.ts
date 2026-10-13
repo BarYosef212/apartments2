@@ -49,7 +49,16 @@ function toDoc(l: Yad2Listing) {
     img: l.images[0],
     images: l.images,
     externalUrl: l.externalUrl,
+    dealType: l.dealType,
   };
+}
+
+/** Yad2 list URLs say the deal type: /realestate/forsale, /agency/<id>/rent, ... */
+function dealTypeOf(url: string): Yad2Listing['dealType'] {
+  const path = new URL(url).pathname;
+  if (/\/rent(\/|$)/.test(path)) return 'rent';
+  if (/\/forsale(\/|$)/.test(path)) return 'sale';
+  return undefined;
 }
 
 // Price is optional: agencies often list "price on request" (price 0).
@@ -172,7 +181,8 @@ async function scanUrls(urls: string[]) {
               : `Scan found ${listings.length} items but none had the required fields`
           );
         }
-        for (const l of listings) byId.set(l.externalId, l);
+        const dealType = dealTypeOf(url);
+        for (const l of listings) byId.set(l.externalId, { ...l, dealType });
       } catch (err) {
         const msg = (err as Error).message || 'Unknown error';
         console.error(`[scraper] ${url} failed:`, msg);

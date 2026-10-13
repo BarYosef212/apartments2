@@ -3,7 +3,7 @@ import { ApartmentDocument } from '../types/models.types';
 import { ApartmentFilters } from '../types/service.types';
 
 export async function getApartments(filters: ApartmentFilters) {
-  const { search, city, type, rooms, minPrice, maxPrice,premium, page = 1, limit = 10 } = filters;
+  const { search, city, type, rooms, minPrice, maxPrice,premium, dealType, page = 1, limit = 10 } = filters;
 
   const query: any = { active: { $ne: false } };
 
@@ -20,6 +20,7 @@ export async function getApartments(filters: ApartmentFilters) {
   if (type) query.type = type;
   if (rooms) query.rooms = rooms;
   if(premium !== undefined) query.premium = premium;
+  if (dealType) query.dealType = dealType;
 
   if (minPrice || maxPrice) {
     query.price = {};

@@ -5,7 +5,7 @@ import { Button, Badge } from '../components/ui';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
 import { useChat } from '../contexts/ChatContext';
 import { ImageGallery } from '../components/ImageGallery';
-import { formatPrice } from '../lib/format';
+import { DEAL_TYPE_LABELS, formatPrice } from '../lib/format';
 
 
 export function ApartmentDetailsPage() {
@@ -71,8 +71,22 @@ export function ApartmentDetailsPage() {
 
           <div className='grid gap-6 md:grid-cols-[2fr,1fr]'>
             <div className='space-y-3 text-right'>
-              <p className='text-3xl font-semibold tracking-tight text-gray-900'>
+              {apartment.dealType && (
+                <Badge>{DEAL_TYPE_LABELS[apartment.dealType]}</Badge>
+              )}
+              <p
+                className={
+                  apartment.price
+                    ? 'text-3xl font-semibold tracking-tight text-gray-900'
+                    : 'text-xl font-medium text-muted-foreground'
+                }
+              >
                 {formatPrice(apartment.price)}
+                {apartment.dealType === 'rent' && apartment.price > 0 && (
+                  <span className='mr-1.5 text-base font-normal text-muted-foreground'>
+                    לחודש
+                  </span>
+                )}
               </p>
               <p className='text-base font-medium text-gray-900'>
                 {apartment.street}, {apartment.city}

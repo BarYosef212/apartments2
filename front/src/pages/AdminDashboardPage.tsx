@@ -25,6 +25,7 @@ export function AdminDashboardPage() {
   const [city, setCity] = useState(searchParams.get('city') ?? '');
   const [type, setType] = useState(searchParams.get('type') ?? '');
   const [rooms, setRooms] = useState(searchParams.get('rooms') ?? '');
+  const [dealType, setDealType] = useState(searchParams.get('dealType') ?? '');
   const [premium, setPremium] = useState(searchParams.get('premium') ?? '');
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') ?? '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') ?? '');
@@ -67,6 +68,7 @@ export function AdminDashboardPage() {
     setCity(searchParams.get('city') ?? '');
     setType(searchParams.get('type') ?? '');
     setRooms(searchParams.get('rooms') ?? '');
+    setDealType(searchParams.get('dealType') ?? '');
     setMinPrice(searchParams.get('minPrice') ?? '');
     setMaxPrice(searchParams.get('maxPrice') ?? '');
   }, [searchParams]);
@@ -102,6 +104,7 @@ export function AdminDashboardPage() {
     if (next.city !== undefined) setCity(next.city);
     if (next.type !== undefined) setType(next.type);
     if (next.rooms !== undefined) setRooms(next.rooms);
+    if (next.dealType !== undefined) setDealType(next.dealType);
     if (next.minPrice !== undefined) setMinPrice(next.minPrice);
     if (next.maxPrice !== undefined) setMaxPrice(next.maxPrice);
     if (next.premium !== undefined) setPremium(next.premium);
@@ -113,6 +116,7 @@ export function AdminDashboardPage() {
     if (city) nextParams.city = city;
     if (type) nextParams.type = type;
     if (rooms) nextParams.rooms = rooms;
+    if (dealType) nextParams.dealType = dealType;
     if (minPrice) nextParams.minPrice = minPrice;
     if (maxPrice) nextParams.maxPrice = maxPrice;
     if (premium) nextParams.premium = premium;
@@ -157,6 +161,8 @@ export function AdminDashboardPage() {
       ...formData,
       images,
       img: images[0] ?? '',
+      price: Number(formData.price) || 0,
+      dealType: formData.dealType || undefined,
       tags:
         typeof formData.tags === 'string'
           ? formData.tags
@@ -216,6 +222,7 @@ export function AdminDashboardPage() {
         city={city}
         type={type}
         rooms={rooms}
+        dealType={dealType}
         minPrice={minPrice}
         maxPrice={maxPrice}
         premium={premium}
@@ -261,6 +268,7 @@ export function AdminDashboardPage() {
                   <th className='py-3 pl-4'>חדרים</th>
                   <th className='py-3 pl-4'>גודל</th>
                   <th className='py-3 pl-4'>סוג</th>
+                  <th className='py-3 pl-4'>עסקה</th>
                   <th className='py-3 pl-4 text-center'>פעולות</th>
                 </tr>
               </thead>
@@ -268,7 +276,7 @@ export function AdminDashboardPage() {
                 {isLoading ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className='py-12 text-center text-muted-foreground animate-pulse'
                     >
                       טוען נתונים...
@@ -277,7 +285,7 @@ export function AdminDashboardPage() {
                 ) : apartments.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className='py-12 text-center text-muted-foreground'
                     >
                       {data?.totalResults === 0

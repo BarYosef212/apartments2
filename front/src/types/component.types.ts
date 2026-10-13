@@ -1,4 +1,4 @@
-import { Apartment } from './apartment.types';
+import { Apartment, DealType } from './apartment.types';
 import { ChatApartment } from './apartment.types';
 
 export interface FiltersBarProps {
@@ -10,6 +10,7 @@ export interface FiltersBarProps {
   minPrice: string;
   maxPrice: string;
   premium?: string;
+  dealType: string;
   cities?: string[];
   types?: string[];
   onChange: (
@@ -49,6 +50,7 @@ export interface ApartmentFormState {
   size: string;
   tags: string;
   premium?:boolean
+  dealType: DealType | '';
 }
 
 export interface AdminApartmentFormDialogProps {

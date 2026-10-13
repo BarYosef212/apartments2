@@ -35,7 +35,8 @@ export class ApartmentsController {
         maxPrice,
         page,
         limit,
-        premium
+        premium,
+        dealType
       } = req.query;
 
       const pageNumber = page ? parseInt(page as string, 10) : 1;
@@ -65,6 +66,7 @@ export class ApartmentsController {
         page: pageNumber,
         limit: limitNumber,
         premium: premium === 'true' ? true : undefined,
+        dealType: dealType === 'sale' || dealType === 'rent' ? (dealType as 'sale' | 'rent') : undefined,
       };
 
       const data = await getApartments(filters);

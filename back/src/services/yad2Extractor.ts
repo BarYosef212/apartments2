@@ -5,6 +5,8 @@ import { chromium, BrowserContext, Page, Response } from 'playwright';
 export interface Yad2Listing {
   externalId: string;
   externalUrl: string;
+  /** Set by the scraper from the list URL it came from. */
+  dealType?: 'sale' | 'rent';
   price?: number;
   city?: string;
   street?: string;

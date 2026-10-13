@@ -14,6 +14,7 @@ const ApartmentSchema = new Schema<ApartmentDocument>(
     size: { type: Number, required: false },
     tags: { type: [String], default: [] },
     premium: {type:Boolean,required:false},
+    dealType: { type: String, enum: ['sale', 'rent'], required: false, index: true },
     embedding: { type: [Number], required: false },
     source: { type: String, enum: ['manual', 'yad2'], default: 'manual', index: true },
     externalId: { type: String, required: false, index: { unique: true, sparse: true } },
