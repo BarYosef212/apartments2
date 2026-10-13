@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { Check, ChevronRight } from 'lucide-react';
 import { Apartment } from '../types/apartment.types';
 import { Button, Badge } from '../components/ui';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
@@ -10,6 +10,9 @@ import { PriceTag } from '../components/PriceTag';
 import { useSiteSettings } from '../contexts/SiteSettingsContext';
 import { whatsappUrl } from '../lib/format';
 
+
+const SECTION_LABEL =
+  'flex items-center gap-3.5 text-sm font-semibold tracking-[0.08em] text-taupe';
 
 export function ApartmentDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +52,7 @@ export function ApartmentDetailsPage() {
         { label: 'חדרים', value: apartment.rooms },
         { label: 'שטח', value: apartment.size && `${apartment.size} מ״ר` },
         { label: 'קומה', value: apartment.floor === 0 ? 'קרקע' : apartment.floor },
+        { label: 'מצב הנכס', value: apartment.condition },
       ].filter((spec) => spec.value !== undefined && spec.value !== null && spec.value !== '')
     : [];
 
@@ -92,7 +96,7 @@ export function ApartmentDetailsPage() {
               <p className='mt-3 text-xl text-[#4A463F]'>{apartment.city}</p>
 
               {specs.length > 0 && (
-                <dl className='mt-10 grid grid-cols-2 border-y border-line sm:grid-cols-4'>
+                <dl className='mt-10 grid grid-cols-2 gap-x-6 border-y border-line sm:grid-cols-3 lg:grid-cols-5'>
                   {specs.map((spec) => (
                     <div key={spec.label} className='py-6'>
                       <dt className='text-sm text-taupe'>{spec.label}</dt>
@@ -105,9 +109,28 @@ export function ApartmentDetailsPage() {
               )}
 
               {apartment.info && (
-                <p className='mt-10 max-w-2xl whitespace-pre-line text-lg font-light leading-relaxed'>
-                  {apartment.info}
-                </p>
+                <section className='mt-12'>
+                  <h2 className={SECTION_LABEL}>על הנכס</h2>
+                  <p className='mt-4 max-w-2xl whitespace-pre-line text-lg font-light leading-relaxed'>
+                    {apartment.info}
+                  </p>
+                </section>
+              )}
+
+              {apartment.features && apartment.features.length > 0 && (
+                <section className='mt-12'>
+                  <h2 className={SECTION_LABEL}>מה יש בנכס</h2>
+                  <ul className='mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3'>
+                    {apartment.features.map((feature) => (
+                      <li key={feature} className='flex items-center gap-3 text-[17px]'>
+                        <span className='flex h-7 w-7 shrink-0 items-center justify-center border border-line bg-white'>
+                          <Check className='h-4 w-4 text-brass' strokeWidth={1.75} aria-hidden='true' />
+                        </span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               )}
               {apartment.tags && apartment.tags.length > 0 && (
                 <div className='mt-8 flex flex-wrap gap-2'>

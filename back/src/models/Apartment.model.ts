@@ -23,6 +23,9 @@ const ApartmentSchema = new Schema<ApartmentDocument>(
     active: { type: Boolean, default: true, index: true },
     lastSeenAt: { type: Date, required: false },
     detailsFetchedAt: { type: Date, required: false },
+    detailsVersion: { type: Number, required: false },
+    features: { type: [String], default: [] },
+    condition: { type: String, required: false, trim: true },
   },
   { timestamps: true }
 );

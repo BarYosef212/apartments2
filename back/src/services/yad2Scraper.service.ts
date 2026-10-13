@@ -18,6 +18,10 @@ export class ScrapeAlreadyRunningError extends Error {
 const ITEM_PAGE_DELAY_MS = 3000;
 const MAX_ITEM_PAGES_PER_RUN = 60;
 const DETAILS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+// Bump when item pages yield new fields, so existing listings are re-read.
+const DETAILS_VERSION = 2;
+// Fields that only come from the item page.
+const DETAIL_FIELDS = ['images', 'img', 'info', 'features', 'condition'] as const;
 
 let running = false;
 let ec: EmbeddingController | null = null;
@@ -46,6 +50,8 @@ function toDoc(l: Yad2Listing) {
     floor: l.floor,
     size: l.size,
     info: l.info,
+    features: l.features,
+    condition: l.condition,
     img: l.images[0],
     images: l.images,
     externalUrl: l.externalUrl,
@@ -68,13 +74,13 @@ function isValid(l: Yad2Listing) {
 
 /**
  * Visits the item page of listings that are new, changed in price, or not
- * checked recently, and replaces their images with the full gallery.
- * Returns the ids whose gallery was fetched. Stops early if Yad2 blocks us;
- * those listings keep the images from the list page.
+ * checked recently, for the full gallery, description and features.
+ * Returns the ids whose item page was read. Stops early if Yad2 blocks us;
+ * those listings keep what the list page had.
  */
-async function fetchGalleries(session: Yad2Session, listings: Yad2Listing[]): Promise<Set<string>> {
+async function fetchDetails(session: Yad2Session, listings: Yad2Listing[]): Promise<Set<string>> {
   const existing = await Apartment.find({ externalId: { $in: listings.map((l) => l.externalId) } })
-    .select('externalId price detailsFetchedAt')
+    .select('externalId price detailsFetchedAt detailsVersion')
     .lean();
   const byId = new Map(existing.map((e) => [e.externalId, e]));
   const staleBefore = Date.now() - DETAILS_MAX_AGE_MS;
@@ -82,7 +88,13 @@ async function fetchGalleries(session: Yad2Session, listings: Yad2Listing[]): Pr
   const due = listings
     .filter((l) => {
       const e = byId.get(l.externalId);
-      return !e || !e.detailsFetchedAt || e.detailsFetchedAt.getTime() < staleBefore || e.price !== (l.price ?? 0);
+      return (
+        !e ||
+        !e.detailsFetchedAt ||
+        (e.detailsVersion ?? 1) < DETAILS_VERSION ||
+        e.detailsFetchedAt.getTime() < staleBefore ||
+        e.price !== (l.price ?? 0)
+      );
     })
     .slice(0, MAX_ITEM_PAGES_PER_RUN);
 
@@ -90,8 +102,11 @@ async function fetchGalleries(session: Yad2Session, listings: Yad2Listing[]): Pr
   for (const [i, l] of due.entries()) {
     if (i > 0) await new Promise((r) => setTimeout(r, ITEM_PAGE_DELAY_MS));
     try {
-      const images = await session.extractItemImages(l);
-      if (images.length > 0) l.images = images;
+      const details = await session.extractItemDetails(l);
+      if (details.images.length > 0) l.images = details.images;
+      l.info = details.description ?? l.info;
+      l.features = details.features;
+      l.condition = details.condition;
       fetched.add(l.externalId);
     } catch (err) {
       if (err instanceof Yad2BlockedError) {
@@ -112,7 +127,7 @@ async function persist(
   listings: Yad2Listing[],
   runStartedAt: Date,
   deactivateMissing: boolean,
-  galleriesFetched: Set<string>
+  detailsFetched: Set<string>
 ): Promise<ScrapeCounts> {
   const counts: ScrapeCounts = { added: 0, updated: 0, deactivated: 0, total: listings.length, skipped: 0 };
 
@@ -133,12 +148,13 @@ async function persist(
       existing.size !== doc.size;
 
     const set: Record<string, any> = { ...doc, source: 'yad2', active: true, lastSeenAt: new Date() };
-    if (galleriesFetched.has(l.externalId)) {
+    if (detailsFetched.has(l.externalId)) {
       set.detailsFetchedAt = new Date();
+      set.detailsVersion = DETAILS_VERSION;
     } else if (existing?.detailsFetchedAt) {
-      // Keep the full gallery from an earlier run over the list page's preview.
-      delete set.images;
-      delete set.img;
+      // Keep what an earlier run read from the item page over the list
+      // page's preview (one photo, no description or features).
+      for (const field of DETAIL_FIELDS) delete set[field];
     }
     if (changed) {
       const embedding = await tryEmbed(doc);
@@ -162,12 +178,12 @@ async function persist(
 
 /**
  * Scans each list URL in turn (a listing may appear in more than one), then
- * fetches the full galleries, all in one browser session.
+ * reads the item pages, all in one browser session.
  */
 async function scanUrls(urls: string[]) {
   const byId = new Map<string, Yad2Listing>();
   const failures: string[] = [];
-  let galleriesFetched = new Set<string>();
+  let detailsFetched = new Set<string>();
 
   const session = await openYad2Session();
   try {
@@ -190,12 +206,12 @@ async function scanUrls(urls: string[]) {
       }
     }
     if (failures.length < urls.length) {
-      galleriesFetched = await fetchGalleries(session, [...byId.values()].filter(isValid));
+      detailsFetched = await fetchDetails(session, [...byId.values()].filter(isValid));
     }
   } finally {
     await session.close();
   }
-  return { listings: [...byId.values()], failures, galleriesFetched };
+  return { listings: [...byId.values()], failures, detailsFetched };
 }
 
 /**
@@ -218,12 +234,12 @@ export async function runScrape(trigger: ScrapeTrigger): Promise<void> {
     const urls = settings.yad2Urls;
     if (urls.length === 0) throw new Error('Yad2 URL is not configured');
 
-    const { listings, failures, galleriesFetched } = await scanUrls(urls);
+    const { listings, failures, detailsFetched } = await scanUrls(urls);
     if (failures.length === urls.length) throw new Error(failures.join('\n'));
 
     // A failed URL would make its listings look removed, so only deactivate
     // when every URL was scanned successfully.
-    const counts = await persist(listings, startedAt, failures.length === 0, galleriesFetched);
+    const counts = await persist(listings, startedAt, failures.length === 0, detailsFetched);
     settings.lastResult = counts;
     log.counts = counts;
     if (failures.length > 0) {

@@ -14,9 +14,11 @@ import { openYad2Session } from '../src/services/yad2Extractor';
     const first = listings[0];
     if (first) {
       console.log('\nOpening item page', first.externalUrl);
-      const images = await session.extractItemImages(first);
-      console.log(`list images=${first.images.length} item images=${images.length}`);
-      console.log(images.join('\n'));
+      const details = await session.extractItemDetails(first);
+      console.log(`list images=${first.images.length} item images=${details.images.length}`);
+      console.log('description:', details.description);
+      console.log('condition:', details.condition);
+      console.log('features:', details.features.join(', '));
     }
   } catch (e: any) {
     console.error('FAILED:', e.message);

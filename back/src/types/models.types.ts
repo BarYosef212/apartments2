@@ -24,6 +24,10 @@ export interface ApartmentDocument extends Document {
   lastSeenAt?: Date;
   /** When the item page itself (full image gallery) was last scraped. */
   detailsFetchedAt?: Date;
+  detailsVersion?: number;
+  /** What the property includes (from Yad2), e.g. מעלית, חניה. */
+  features?: string[];
+  condition?: string;
 }
 
 export type ScrapeStatus = 'success' | 'failed' | 'running';

@@ -16,7 +16,38 @@ export interface Yad2Listing {
   size?: number;
   images: string[];
   info?: string;
+  /** From the item page: what the property includes, in Hebrew. */
+  features?: string[];
+  /** From the item page, e.g. "במצב שמור". */
+  condition?: string;
 }
+
+export interface Yad2ItemDetails {
+  images: string[];
+  description?: string;
+  features: string[];
+  condition?: string;
+}
+
+/** Yad2's inProperty flags, labelled the way Yad2 shows them. */
+const FEATURE_LABELS: Record<string, string> = {
+  includeAirconditioner: 'מיזוג',
+  includeTornado: 'מזגן טורנדו',
+  includeBoiler: 'דוד שמש',
+  includeBars: 'סורגים',
+  includeFurniture: 'ריהוט',
+  includeSecurityRoom: 'ממ״ד',
+  includeBuildingShelter: 'מקלט',
+  includeBalcony: 'מרפסת',
+  includeElevator: 'מעלית',
+  includeParking: 'חניה',
+  includeWarehouse: 'מחסן',
+  isHandicapped: 'גישה לנכים',
+  isRenovated: 'משופצת',
+  isPetsAllowed: 'חיות מחמד',
+  isForPartners: 'מתאים לשותפים',
+  isKitchenKosher: 'מטבח כשר',
+};
 
 export interface ExtractResult {
   listings: Yad2Listing[];
@@ -220,9 +251,10 @@ function findItemObjects(root: unknown, externalId: string): Record<string, any>
     if (!node || typeof node !== 'object' || depth > 25 || seen.has(node)) return;
     seen.add(node);
     const o = asObj(node);
+    // Keep descending after a match: the id also appears on wrappers (page
+    // props, query state) above the item object that holds the details.
     if (o && [o.token, o.orderId, o.adNumber, o.id].some((v) => v != null && String(v) === externalId)) {
       out.push(o);
-      return;
     }
     for (const v of Object.values(node as Record<string, unknown>)) walk(v, depth + 1);
   };
@@ -290,8 +322,8 @@ async function loadPage(page: Page, url: string): Promise<{ json: unknown[] }> {
 export interface Yad2Session {
   /** Extract the listings shown on a Yad2 list page (e.g. an agency page). */
   extractListings(url: string): Promise<ExtractResult>;
-  /** Open a single listing page and return all of its images. */
-  extractItemImages(listing: Pick<Yad2Listing, 'externalId' | 'externalUrl'>): Promise<string[]>;
+  /** Open a single listing page: its full gallery, description and features. */
+  extractItemDetails(listing: Pick<Yad2Listing, 'externalId' | 'externalUrl'>): Promise<Yad2ItemDetails>;
   close(): Promise<void>;
 }
 
@@ -318,15 +350,27 @@ export async function openYad2Session(): Promise<Yad2Session> {
       return { listings: dedupe(mapped), candidates: raws.length };
     },
 
-    async extractItemImages({ externalId, externalUrl }) {
-      // Only images inside this item's own data: the rendered page also shows
-      // other listings ("similar ads"), so scraping the HTML would mix them in.
+    async extractItemDetails({ externalId, externalUrl }) {
+      // Only this item's own data: the rendered page also shows other
+      // listings ("similar ads"), so scraping the HTML would mix them in.
       const { json } = await loadPage(page, externalUrl);
+      const items = json.flatMap((j) => findItemObjects(j, externalId));
+
       const found = new Map<string, string>();
-      for (const j of json) {
-        for (const item of findItemObjects(j, externalId)) collectImages(item, externalId, found);
+      for (const item of items) collectImages(item, externalId, found);
+
+      const details: Yad2ItemDetails = { images: [...found.values()], features: [] };
+      for (const item of items) {
+        details.description ??= textOf(asObj(item.metaData)?.description);
+        details.condition ??= textOf(asObj(item.additionalDetails)?.propertyCondition);
+        const inProperty = asObj(item.inProperty);
+        if (inProperty && details.features.length === 0) {
+          details.features = Object.entries(FEATURE_LABELS)
+            .filter(([key]) => inProperty[key] === true)
+            .map(([, label]) => label);
+        }
       }
-      return [...found.values()];
+      return details;
     },
 
     async close() {

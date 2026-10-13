@@ -4,6 +4,9 @@ export interface Apartment {
   _id: string;
   img: string;
   images?: string[];
+  /** What the property includes, e.g. מעלית, חניה. */
+  features?: string[];
+  condition?: string;
   price: number;
   street: string;
   city: string;
