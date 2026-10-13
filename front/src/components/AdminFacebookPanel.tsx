@@ -40,6 +40,29 @@ function errorMessage(err: unknown, fallback: string) {
 
 const postKey = (apartmentId: string, groupId: string) => `${apartmentId}:${groupId}`;
 
+/**
+ * Copies synchronously, inside the click. The async Clipboard API can still
+ * be pending when the Facebook tab opens and takes focus, and then it fails.
+ */
+function copyNow(text: string) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  area.remove();
+  if (!ok) navigator.clipboard?.writeText(text).catch(() => {});
+  return ok;
+}
+
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
 
@@ -55,6 +78,11 @@ export function AdminFacebookPanel() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [onlyPending, setOnlyPending] = useState(false);
+  const [publishing, setPublishing] = useState<{
+    apartment: Apartment;
+    group: Group;
+    copied: boolean;
+  } | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -82,29 +110,31 @@ export function AdminFacebookPanel() {
   const textFor = (apartment: Apartment) =>
     renderPost(savedTemplate, apartment, { phone, siteOrigin: window.location.origin });
 
-  async function copyText(apartment: Apartment) {
-    try {
-      await navigator.clipboard.writeText(textFor(apartment));
-      flash(`הטקסט של ${apartment.street} הועתק.`);
-    } catch {
-      setError('לא הצלחנו להעתיק. אפשר לסמן את הטקסט בתצוגה ולהעתיק ידנית.');
-    }
+  function copyText(apartment: Apartment) {
+    if (copyNow(textFor(apartment))) flash(`הטקסט של ${apartment.street} הועתק.`);
+    else setError('לא הצלחנו להעתיק. פתחו ״הצגת הטקסט״, סמנו והעתיקו ידנית.');
   }
 
-  async function postToGroup(apartment: Apartment, group: Group) {
-    // Start the copy before opening the tab: the clipboard needs this page focused.
-    const copied = navigator.clipboard.writeText(textFor(apartment));
+  /** Copies the text, opens the group, and walks through the rest. */
+  function postToGroup(apartment: Apartment, group: Group) {
+    const copied = copyNow(textFor(apartment));
     window.open(group.url, '_blank', 'noopener,noreferrer');
+    setError(null);
+    setNotice(null);
+    setPublishing({ apartment, group, copied });
+  }
+
+  async function markPosted(apartment: Apartment, group: Group) {
     try {
-      await copied;
       const res = await api.post<Post>('/admin/facebook/posts', {
         apartmentId: apartment._id,
         groupId: group._id,
       });
       setPosts((m) => new Map(m).set(postKey(apartment._id, group._id), res.data));
-      flash(`הטקסט הועתק והקבוצה ״${group.name}״ נפתחה. הדביקו (Ctrl+V / ⌘V), צרפו את התמונות ופרסמו.`);
+      setPublishing(null);
+      flash(`סומן: ${apartment.street} פורסם ב״${group.name}״.`);
     } catch {
-      setError('הקבוצה נפתחה, אבל ההעתקה או הסימון נכשלו. נסו ״העתקת טקסט״.');
+      setError('הסימון נכשל.');
     }
   }
 
@@ -206,8 +236,8 @@ export function AdminFacebookPanel() {
           <div>
             <h2 className={SECTION_TITLE}>פרסום נכסים</h2>
             <p className='mt-2 text-sm text-taupe'>
-              לחיצה על קבוצה מעתיקה את הטקסט, פותחת את הקבוצה ומסמנת שפורסם. שם
-              מדביקים, מצרפים את התמונות ולוחצים ״פרסום״.
+              לחיצה על קבוצה מעתיקה את הטקסט ופותחת את הקבוצה, וחלון כאן מסביר
+              את שאר הצעדים.
             </p>
           </div>
           <label className='flex min-h-11 cursor-pointer items-center gap-2.5 text-sm'>
@@ -248,6 +278,154 @@ export function AdminFacebookPanel() {
           ))}
         </ul>
       </Card>
+
+      {publishing && (
+        <PublishDialog
+          {...publishing}
+          text={textFor(publishing.apartment)}
+          onCopyAgain={() =>
+            setPublishing({ ...publishing, copied: copyNow(textFor(publishing.apartment)) })
+          }
+          onDownload={() => downloadImages(publishing.apartment)}
+          onDone={() => markPosted(publishing.apartment, publishing.group)}
+          onClose={() => setPublishing(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Stays open in the admin while the group is open in another tab. */
+function PublishDialog({
+  apartment,
+  group,
+  copied,
+  text,
+  onCopyAgain,
+  onDownload,
+  onDone,
+  onClose,
+}: {
+  apartment: Apartment;
+  group: Group;
+  copied: boolean;
+  text: string;
+  onCopyAgain: () => void;
+  onDownload: () => void;
+  onDone: () => void;
+  onClose: () => void;
+}) {
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+  const hasImages = (apartment.images?.length ?? 0) > 0 || !!apartment.img;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const step = 'flex gap-4';
+  const num =
+    'flex h-8 w-8 shrink-0 items-center justify-center border border-ink font-display text-xl leading-none';
+
+  return (
+    <div
+      className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'
+      onClick={onClose}
+    >
+      <div
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='publish-title'
+        className='max-h-[90vh] w-full max-w-xl overflow-y-auto bg-white p-7'
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id='publish-title' className='font-display text-4xl font-light leading-none'>
+          פרסום ב״{group.name}״
+        </h2>
+        <p className='mt-2 text-sm text-taupe'>
+          {apartment.street}, {apartment.city}. הקבוצה נפתחה בלשונית חדשה.
+        </p>
+
+        <ol className='mt-7 space-y-5 text-[15px]'>
+          <li className={step}>
+            <span className={num}>1</span>
+            <div className='pt-1'>
+              {copied ? (
+                <p className='flex items-center gap-2'>
+                  <Check className='h-4 w-4 text-emerald-700' aria-hidden='true' /> הטקסט הועתק.
+                </p>
+              ) : (
+                <p className='text-red-700'>ההעתקה האוטומטית לא עבדה. לחצו ״העתקה שוב״.</p>
+              )}
+              <button type='button' onClick={onCopyAgain} className='mt-1 text-sm underline'>
+                העתקה שוב
+              </button>
+            </div>
+          </li>
+          <li className={step}>
+            <span className={num}>2</span>
+            <p className='pt-1'>בקבוצה, לחצו על ״כתבו משהו…״ כדי לפתוח פוסט חדש.</p>
+          </li>
+          <li className={step}>
+            <span className={num}>3</span>
+            <p className='pt-1'>
+              הדביקו את הטקסט:{' '}
+              <kbd className='border border-line bg-sand px-1.5 py-0.5 text-sm' dir='ltr'>
+                {isMac ? '⌘ V' : 'Ctrl V'}
+              </kbd>
+            </p>
+          </li>
+          {hasImages && (
+            <li className={step}>
+              <span className={num}>4</span>
+              <div className='pt-1'>
+                <p>
+                  צרפו תמונות: הורידו אותן, פתחו את הקובץ שירד, ובפוסט לחצו ״תמונה/סרטון״
+                  ובחרו אותן.
+                </p>
+                <button
+                  type='button'
+                  onClick={onDownload}
+                  className='mt-2 inline-flex min-h-10 items-center gap-2 border border-ink px-3 text-sm font-semibold hover:bg-ink hover:text-white'
+                >
+                  <Download className='h-4 w-4' aria-hidden='true' /> הורדת התמונות
+                </button>
+              </div>
+            </li>
+          )}
+          <li className={step}>
+            <span className={num}>{hasImages ? 5 : 4}</span>
+            <p className='pt-1'>לחצו ״פרסום״ בפייסבוק, וחזרו לכאן לסמן שפורסם.</p>
+          </li>
+        </ol>
+
+        <details className='mt-6 text-sm'>
+          <summary className='cursor-pointer text-taupe hover:text-ink'>הטקסט שהועתק</summary>
+          <pre className='mt-2 whitespace-pre-wrap border border-line bg-sand p-3 font-sans leading-relaxed'>
+            {text}
+          </pre>
+        </details>
+
+        <div className='mt-7 flex flex-wrap justify-between gap-3 border-t border-line pt-5'>
+          <a
+            href={group.url}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='inline-flex min-h-11 items-center gap-1.5 text-sm underline'
+          >
+            פתיחת הקבוצה שוב <ExternalLink className='h-3.5 w-3.5' aria-hidden='true' />
+          </a>
+          <div className='flex gap-3'>
+            <Button type='button' variant='outline' onClick={onClose}>
+              עוד לא
+            </Button>
+            <Button type='button' onClick={onDone}>
+              פרסמתי
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
