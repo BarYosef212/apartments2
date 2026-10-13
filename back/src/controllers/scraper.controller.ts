@@ -6,6 +6,7 @@ import { reschedule } from '../services/scheduler.service';
 
 const MIN_INTERVAL = 1;
 const MAX_INTERVAL = 168;
+const MAX_URLS = 20;
 
 function validYad2Url(value: string): boolean {
   try {
@@ -29,14 +30,21 @@ export class ScraperController {
 
   async handleUpdateSettings(req: Request, res: Response) {
     try {
-      const { yad2Url, intervalHours, enabled } = req.body ?? {};
+      const { yad2Urls, intervalHours, enabled } = req.body ?? {};
       const s = await getSettingsDoc();
 
-      if (yad2Url !== undefined) {
-        if (yad2Url !== '' && !validYad2Url(String(yad2Url))) {
+      if (yad2Urls !== undefined) {
+        if (!Array.isArray(yad2Urls)) {
+          return res.status(400).json({ message: 'yad2Urls must be an array' });
+        }
+        const urls = [...new Set(yad2Urls.map((u: unknown) => String(u).trim()).filter(Boolean))];
+        if (urls.length > MAX_URLS) {
+          return res.status(400).json({ message: `At most ${MAX_URLS} Yad2 URLs are allowed` });
+        }
+        if (urls.some((u) => !validYad2Url(u))) {
           return res.status(400).json({ message: 'yad2Url must be an https yad2.co.il URL' });
         }
-        s.yad2Url = String(yad2Url).trim();
+        s.yad2Urls = urls;
       }
       if (intervalHours !== undefined) {
         const n = Number(intervalHours);
@@ -49,7 +57,7 @@ export class ScraperController {
         if (typeof enabled !== 'boolean') return res.status(400).json({ message: 'enabled must be boolean' });
         s.enabled = enabled;
       }
-      if (s.enabled && !s.yad2Url) {
+      if (s.enabled && s.yad2Urls.length === 0) {
         return res.status(400).json({ message: 'Cannot enable scraper without a Yad2 URL' });
       }
 
@@ -65,7 +73,7 @@ export class ScraperController {
   async handleRun(req: Request, res: Response) {
     try {
       const s = await getSettingsDoc();
-      if (!s.yad2Url) return res.status(400).json({ message: 'Yad2 URL is not configured' });
+      if (s.yad2Urls.length === 0) return res.status(400).json({ message: 'Yad2 URL is not configured' });
       startScrapeInBackground('manual');
       return res.status(202).json({ running: true, message: 'Scan started' });
     } catch (error) {

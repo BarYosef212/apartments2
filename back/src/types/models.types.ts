@@ -32,7 +32,9 @@ export interface ScrapeCounts {
 }
 
 export interface ScraperSettingsDocument extends Document {
-  yad2Url: string;
+  yad2Urls: string[];
+  /** @deprecated single-URL setting, migrated into yad2Urls on read */
+  yad2Url?: string;
   intervalHours: number;
   enabled: boolean;
   lastRunAt?: Date | null;

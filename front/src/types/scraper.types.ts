@@ -8,7 +8,7 @@ export interface ScrapeCounts {
 }
 
 export interface ScraperSettings {
-  yad2Url: string;
+  yad2Urls: string[];
   intervalHours: number;
   enabled: boolean;
   lastRunAt?: string | null;
@@ -19,7 +19,7 @@ export interface ScraperSettings {
 
 export type ScraperSettingsInput = Pick<
   ScraperSettings,
-  'yad2Url' | 'intervalHours' | 'enabled'
+  'yad2Urls' | 'intervalHours' | 'enabled'
 >;
 
 export interface ScraperStatus extends Partial<ScraperSettings> {

@@ -9,7 +9,7 @@ export async function reschedule() {
     timer = null;
   }
   const settings = await getSettingsDoc();
-  if (!settings.enabled || !settings.yad2Url) {
+  if (!settings.enabled || settings.yad2Urls.length === 0) {
     console.info('[scheduler] disabled');
     return;
   }

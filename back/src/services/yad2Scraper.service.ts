@@ -51,8 +51,15 @@ function isValid(l: Yad2Listing) {
   return !!(l.price && l.price > 0 && l.street && l.city && l.type);
 }
 
-/** Upserts listings, returns counts. Deactivation is done by the caller flow here too. */
-async function persist(listings: Yad2Listing[], runStartedAt: Date): Promise<ScrapeCounts> {
+/**
+ * Upserts listings and returns counts. Listings not seen in this run are
+ * deactivated only when `deactivateMissing` is set, i.e. every URL was scanned.
+ */
+async function persist(
+  listings: Yad2Listing[],
+  runStartedAt: Date,
+  deactivateMissing: boolean
+): Promise<ScrapeCounts> {
   const counts: ScrapeCounts = { added: 0, updated: 0, deactivated: 0, total: listings.length, skipped: 0 };
 
   for (const l of listings) {
@@ -82,6 +89,8 @@ async function persist(listings: Yad2Listing[], runStartedAt: Date): Promise<Scr
     else counts.added++;
   }
 
+  if (!deactivateMissing) return counts;
+
   const res = await Apartment.updateMany(
     { source: 'yad2', active: { $ne: false }, lastSeenAt: { $lt: runStartedAt } },
     { $set: { active: false } }
@@ -107,21 +116,47 @@ export async function runScrape(trigger: ScrapeTrigger): Promise<void> {
   await settings.save();
 
   try {
-    if (!settings.yad2Url) throw new Error('Yad2 URL is not configured');
-    const { listings } = await extractListings(settings.yad2Url);
-    const valid = listings.filter(isValid);
-    if (valid.length === 0) {
-      throw new Error(
-        listings.length === 0
-          ? 'Scan found 0 listings (page structure may have changed)'
-          : `Scan found ${listings.length} items but none had the required fields`
-      );
+    const urls = settings.yad2Urls;
+    if (urls.length === 0) throw new Error('Yad2 URL is not configured');
+
+    // Scan the URLs one after another; a listing may appear in more than one.
+    const byId = new Map<string, Yad2Listing>();
+    const failures: string[] = [];
+    for (const url of urls) {
+      try {
+        const { listings } = await extractListings(url);
+        if (!listings.some(isValid)) {
+          throw new Error(
+            listings.length === 0
+              ? 'Scan found 0 listings (page structure may have changed)'
+              : `Scan found ${listings.length} items but none had the required fields`
+          );
+        }
+        for (const l of listings) byId.set(l.externalId, l);
+      } catch (err) {
+        const msg = (err as Error).message || 'Unknown error';
+        console.error(`[scraper] ${url} failed:`, msg);
+        failures.push(urls.length === 1 ? msg : `${url}: ${msg}`);
+      }
     }
-    const counts = await persist(listings, startedAt);
-    settings.lastStatus = 'success';
+
+    if (failures.length === urls.length) throw new Error(failures.join('\n'));
+
+    // A failed URL would make its listings look removed, so only deactivate
+    // when every URL was scanned successfully.
+    const counts = await persist([...byId.values()], startedAt, failures.length === 0);
     settings.lastResult = counts;
-    log.status = 'success';
     log.counts = counts;
+    if (failures.length > 0) {
+      const msg = failures.join('\n');
+      settings.lastStatus = 'failed';
+      settings.lastError = msg;
+      log.status = 'failed';
+      log.error = msg;
+    } else {
+      settings.lastStatus = 'success';
+      log.status = 'success';
+    }
   } catch (err) {
     const msg = (err as Error).message || 'Unknown error';
     console.error('[scraper] run failed:', msg);

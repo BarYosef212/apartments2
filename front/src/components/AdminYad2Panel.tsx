@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import axios from 'axios';
 import { Button, Card, Input, Select } from './ui';
 import Switch from './ui/switch';
@@ -33,9 +34,10 @@ const STATUS_STYLES: Record<NonNullable<ScrapeStatus>, string> = {
 };
 
 const POLL_INTERVAL_MS = 3000;
+const MAX_URLS = 20;
 
 const EMPTY_FORM: ScraperSettingsInput = {
-  yad2Url: '',
+  yad2Urls: [],
   intervalHours: 12,
   enabled: false,
 };
@@ -61,7 +63,8 @@ function formatDuration(start: string, end?: string | null) {
 
 const SERVER_MESSAGES: Record<string, string> = {
   'yad2Url must be an https yad2.co.il URL':
-    'הקישור חייב להיות כתובת https של yad2.co.il.',
+    'כל הקישורים חייבים להיות כתובות https של yad2.co.il.',
+  [`At most ${MAX_URLS} Yad2 URLs are allowed`]: `ניתן לשמור עד ${MAX_URLS} קישורים.`,
   'Cannot enable scraper without a Yad2 URL':
     'לא ניתן להפעיל סריקה אוטומטית ללא קישור ליד2.',
   'Yad2 URL is not configured': 'יש לשמור קישור ליד2 לפני סריקה.',
@@ -69,9 +72,17 @@ const SERVER_MESSAGES: Record<string, string> = {
     'יד2 חסמו את הסריקה (הגנה מפני בוטים). נסו שוב מאוחר יותר.',
 };
 
+// Multi-link scans report one failure per line as "<url>: <message>".
 function translate(message?: string | null) {
-  if (!message) return message ?? '';
-  return SERVER_MESSAGES[message] ?? message;
+  if (!message) return '';
+  return message
+    .split('\n')
+    .map((line) => {
+      const match = line.match(/^(https?:\/\/\S+): (.*)$/);
+      if (!match) return SERVER_MESSAGES[line] ?? line;
+      return `${match[1]}: ${SERVER_MESSAGES[match[2]] ?? match[2]}`;
+    })
+    .join('\n');
 }
 
 function errorMessage(err: unknown, fallback: string) {
@@ -81,6 +92,14 @@ function errorMessage(err: unknown, fallback: string) {
     return message ? translate(message) : fallback;
   }
   return fallback;
+}
+
+function toForm(settings: Partial<ScraperSettingsInput>): ScraperSettingsInput {
+  return {
+    yad2Urls: settings.yad2Urls ?? [],
+    intervalHours: settings.intervalHours ?? 12,
+    enabled: Boolean(settings.enabled),
+  };
 }
 
 function StatusPill({ status }: { status?: ScrapeStatus }) {
@@ -113,7 +132,28 @@ export function AdminYad2Panel() {
 
   const wasRunning = useRef(false);
   const isRunning = Boolean(status?.running) || isStarting;
-  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm);
+  // The editor always shows at least one (possibly empty) row; empty rows are
+  // dropped when saving.
+  const urlRows = form.yad2Urls.length > 0 ? form.yad2Urls : [''];
+  const cleanUrls = form.yad2Urls.map((u) => u.trim()).filter(Boolean);
+  const isDirty =
+    JSON.stringify({ ...form, yad2Urls: cleanUrls }) !==
+    JSON.stringify(savedForm);
+  const hasSavedUrls = savedForm.yad2Urls.length > 0;
+
+  function setUrl(index: number, value: string) {
+    const next = [...urlRows];
+    next[index] = value;
+    setForm({ ...form, yad2Urls: next });
+  }
+
+  function addUrl() {
+    setForm({ ...form, yad2Urls: [...urlRows, ''] });
+  }
+
+  function removeUrl(index: number) {
+    setForm({ ...form, yad2Urls: urlRows.filter((_, i) => i !== index) });
+  }
 
   async function refreshStatusAndLogs() {
     const [statusRes, logsRes] = await Promise.all([
@@ -128,11 +168,7 @@ export function AdminYad2Panel() {
     async function load() {
       try {
         const settings = await fetchSettings();
-        const next: ScraperSettingsInput = {
-          yad2Url: settings.yad2Url ?? '',
-          intervalHours: settings.intervalHours ?? 12,
-          enabled: Boolean(settings.enabled),
-        };
+        const next = toForm(settings);
         setForm(next);
         setSavedForm(next);
         await refreshStatusAndLogs();
@@ -169,12 +205,8 @@ export function AdminYad2Panel() {
     setError(null);
     setNotice(null);
     try {
-      const saved = await saveSettings(form);
-      const next: ScraperSettingsInput = {
-        yad2Url: saved?.yad2Url ?? form.yad2Url,
-        intervalHours: saved?.intervalHours ?? form.intervalHours,
-        enabled: saved?.enabled ?? form.enabled,
-      };
+      const saved = await saveSettings({ ...form, yad2Urls: cleanUrls });
+      const next = toForm(saved);
       setForm(next);
       setSavedForm(next);
       setNotice('ההגדרות נשמרו.');
@@ -237,24 +269,47 @@ export function AdminYad2Panel() {
                 הגדרות סריקה
               </h2>
               <p className='mt-1 text-sm text-muted-foreground'>
-                המערכת תסרוק את עמוד המתווך ביד2 ותעדכן את הדירות באתר.
+                המערכת תסרוק את העמודים ביד2 ותעדכן את הדירות באתר.
               </p>
             </div>
 
-            <div className='space-y-1.5'>
-              <label htmlFor='yad2Url' className='text-sm font-medium'>
-                קישור לעמוד הדירות ביד2
-              </label>
-              <Input
-                id='yad2Url'
-                type='url'
-                dir='ltr'
-                placeholder='https://www.yad2.co.il/realestate/agency/...'
-                value={form.yad2Url}
-                onChange={(e) => setForm({ ...form, yad2Url: e.target.value })}
-                required
-              />
-            </div>
+            <fieldset className='space-y-2'>
+              <legend className='mb-1.5 text-sm font-medium'>
+                קישורים לעמודי דירות ביד2
+              </legend>
+              {urlRows.map((url, index) => (
+                <div key={index} className='flex items-center gap-2'>
+                  <Input
+                    type='url'
+                    dir='ltr'
+                    aria-label={`קישור ${index + 1}`}
+                    placeholder='https://www.yad2.co.il/realestate/agency/...'
+                    value={url}
+                    onChange={(e) => setUrl(index, e.target.value)}
+                  />
+                  {urlRows.length > 1 && (
+                    <button
+                      type='button'
+                      onClick={() => removeUrl(index)}
+                      aria-label={`הסרת קישור ${index + 1}`}
+                      className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-900'
+                    >
+                      <X className='h-4 w-4' />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {urlRows.length < MAX_URLS && (
+                <button
+                  type='button'
+                  onClick={addUrl}
+                  className='inline-flex items-center gap-1.5 rounded-md py-1 text-sm font-medium text-gray-700 hover:text-gray-900'
+                >
+                  <Plus className='h-4 w-4' />
+                  הוספת קישור
+                </button>
+              )}
+            </fieldset>
 
             <div className='grid gap-5 sm:grid-cols-2'>
               <div className='space-y-1.5'>
@@ -344,7 +399,7 @@ export function AdminYad2Panel() {
           )}
 
           {status?.lastStatus === 'failed' && status.lastError && (
-            <p className='mt-4 rounded-md bg-red-50 p-3 text-xs text-red-700'>
+            <p className='mt-4 whitespace-pre-line break-all rounded-md bg-red-50 p-3 text-xs text-red-700'>
               {translate(status.lastError)}
             </p>
           )}
@@ -354,11 +409,11 @@ export function AdminYad2Panel() {
               type='button'
               className='w-full'
               onClick={handleRun}
-              disabled={isRunning || !savedForm.yad2Url}
+              disabled={isRunning || !hasSavedUrls}
             >
               {isRunning ? 'סורק…' : 'סרוק עכשיו'}
             </Button>
-            {!savedForm.yad2Url && (
+            {!hasSavedUrls && (
               <p className='mt-2 text-center text-xs text-muted-foreground'>
                 יש לשמור קישור ליד2 לפני סריקה.
               </p>
