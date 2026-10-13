@@ -23,6 +23,7 @@ function getEmbeddingController(): EmbeddingController {
 
 
 export class ApartmentsController {
+
   async handleGetApartments(req: Request, res: Response) {
     try {
       const {

@@ -13,48 +13,48 @@ export default function App() : JSX.Element {
     <ChatProvider>
       <BrowserRouter>
         <Routes>
-        <Route
-          path='/'
-          element={
-            <AppLayout>
-              <HomePage />
-            </AppLayout>
-          }
-        />
-        <Route
-          path='/apartments'
-          element={
-            <AppLayout>
-              <ApartmentsListPage />
-            </AppLayout>
-          }
-        />
-        <Route
-          path='/apartments/:id'
-          element={
-            <AppLayout>
-              <ApartmentDetailsPage />
-            </AppLayout>
-          }
-        />
-        <Route
-          path='/login'
-          element={
-            <AppLayout>
-              <LoginPage />
-            </AppLayout>
-          }
-        />
-        <Route
-          path='/admin'
-          element={
-            <ProtectedRoute>
+          <Route
+            path='/'
+            element={
               <AppLayout>
-                <AdminDashboardPage />
+                <HomePage />
               </AppLayout>
-            </ProtectedRoute>
-          }
-        />
+            }
+          />
+          <Route
+            path='/apartments'
+            element={
+              <AppLayout>
+                <ApartmentsListPage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path='/apartments/:id'
+            element={
+              <AppLayout>
+                <ApartmentDetailsPage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path='/login'
+            element={
+              <AppLayout>
+                <LoginPage />
+              </AppLayout>
+            }
+          />
+          <Route
+            path='/admin'
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AdminDashboardPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
       </Routes>
     </BrowserRouter>
     </ChatProvider>

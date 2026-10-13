@@ -28,7 +28,9 @@ export async function getApartments(filters: ApartmentFilters) {
   }
 
   const skip = (page - 1) * limit;
+
   const results = await Apartment.find(query)
+    .select('-embedding')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
