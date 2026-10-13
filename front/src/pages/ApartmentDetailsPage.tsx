@@ -5,7 +5,8 @@ import { Button, Badge } from '../components/ui';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
 import { useChat } from '../contexts/ChatContext';
 import { ImageGallery } from '../components/ImageGallery';
-import { DEAL_TYPE_LABELS, formatPrice } from '../lib/format';
+import { DEAL_TYPE_LABELS } from '../lib/format';
+import { PriceTag } from '../components/PriceTag';
 
 
 export function ApartmentDetailsPage() {
@@ -74,23 +75,12 @@ export function ApartmentDetailsPage() {
               {apartment.dealType && (
                 <Badge>{DEAL_TYPE_LABELS[apartment.dealType]}</Badge>
               )}
-              <p
-                className={
-                  apartment.price
-                    ? 'text-3xl font-semibold tracking-tight text-gray-900'
-                    : 'text-xl font-medium text-muted-foreground'
-                }
-              >
-                {formatPrice(apartment.price)}
-                {apartment.dealType === 'rent' && apartment.price > 0 && (
-                  <span className='mr-1.5 text-base font-normal text-muted-foreground'>
-                    לחודש
-                  </span>
-                )}
-              </p>
-              <p className='text-base font-medium text-gray-900'>
-                {apartment.street}, {apartment.city}
-              </p>
+              <div>
+                <h1 className='text-3xl font-semibold leading-tight tracking-tight text-gray-900'>
+                  {apartment.street}
+                </h1>
+                <p className='mt-1 text-xl text-gray-700'>{apartment.city}</p>
+              </div>
               <p className='text-sm text-muted-foreground'>
                 {apartment.type} · {apartment.rooms} חדרים · {apartment.size}{' '}
                 מ&quot;ר · קומה {apartment.floor}
@@ -104,7 +94,12 @@ export function ApartmentDetailsPage() {
                 </div>
               )}
             </div>
-            <div className='pt-4 justify-self-end'>
+            <div className='flex flex-col items-end gap-5 justify-self-end'>
+              <PriceTag
+                price={apartment.price}
+                dealType={apartment.dealType}
+                size='lg'
+              />
               <Button onClick={scheduleViewing} size='lg'>
                 קבע פגישה עבור נכס זה
               </Button>

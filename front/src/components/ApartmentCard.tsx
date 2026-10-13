@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader, Badge } from './ui';
 import { Link } from 'react-router-dom';
 import { Apartment } from '../types/apartment.types';
 import { HOUSE_PLACEHOLDER_IMAGE } from '../config/constants';
-import { DEAL_TYPE_LABELS, formatPrice, sizedImage } from '../lib/format';
+import { DEAL_TYPE_LABELS, sizedImage } from '../lib/format';
+import { PriceTag } from './PriceTag';
 
 
 export function ApartmentCard({
@@ -48,28 +49,17 @@ export function ApartmentCard({
         </div>
       </CardHeader>
       <CardContent className='flex flex-1 flex-col gap-3'>
-        <div className='flex items-baseline justify-between gap-2'>
-          <p
-            className={
-              apartment.price
-                ? 'text-2xl font-semibold tracking-tight text-gray-900'
-                : 'text-base font-medium text-muted-foreground'
-            }
-          >
-            {formatPrice(apartment.price)}
-            {apartment.dealType === 'rent' && apartment.price > 0 && (
-              <span className='mr-1 text-sm font-normal text-muted-foreground'>
-                לחודש
-              </span>
-            )}
-          </p>
-          <p className='text-xs font-medium tracking-wide text-muted-foreground'>
-            {apartment.city}
-          </p>
+        <div className='flex items-start justify-between gap-3'>
+          <div className='min-w-0 text-right'>
+            <h3 className='truncate text-lg font-semibold leading-tight text-gray-900'>
+              {apartment.street}
+            </h3>
+            <p className='mt-0.5 truncate text-base text-gray-700'>
+              {apartment.city}
+            </p>
+          </div>
+          <PriceTag price={apartment.price} dealType={apartment.dealType} />
         </div>
-        <p className='text-sm font-medium text-gray-900 text-right'>
-          {apartment.street}
-        </p>
         <p className='text-xs text-muted-foreground text-right'>
           {apartment.type} · {apartment.rooms} חדרים · {apartment.size} מ&quot;ר
           · קומה {apartment.floor}
