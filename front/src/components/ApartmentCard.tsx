@@ -22,7 +22,7 @@ export function ApartmentCard({
   return (
     <Link
       to={`/apartments/${apartment._id}`}
-      className='group flex h-full flex-col'
+      className='group flex h-full flex-col bg-white transition-shadow duration-300 hover:shadow-[0_18px_44px_rgba(25,25,23,0.12)]'
     >
       <div className='relative aspect-[4/3] overflow-hidden bg-[#E6E0D6]'>
         <img
@@ -50,7 +50,7 @@ export function ApartmentCard({
         )}
       </div>
 
-      <div className='flex flex-1 flex-col pt-4'>
+      <div className='flex flex-1 flex-col px-5 pb-6 pt-5'>
         <div className='flex items-start justify-between gap-3'>
           <div className='min-w-0'>
             <h3 className='truncate font-display text-4xl font-light leading-none'>

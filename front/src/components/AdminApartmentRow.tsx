@@ -9,7 +9,7 @@ export function AdminApartmentRow({
   onDelete,
 }: AdminApartmentRowProps) {
   return (
-    <tr className='border-b border-border text-[11px] last:border-0 hover:bg-gray-50 transition-colors'>
+    <tr className='border-b border-border text-[11px] last:border-0 hover:bg-sand/60 transition-colors'>
       <td className='py-2 pl-4 pr-6'>{apartment.street}</td>
       <td className='py-2 pl-4'>{apartment.city}</td>
       <td className='py-2 pl-4 font-medium'>{formatPrice(apartment.price)}</td>

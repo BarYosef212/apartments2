@@ -23,7 +23,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
   return (
     <div className='space-y-3'>
       <div
-        className='group relative overflow-hidden rounded-2xl bg-muted outline-none focus-visible:ring-2 focus-visible:ring-gray-900'
+        className='group relative overflow-hidden bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ink'
         tabIndex={hasMany ? 0 : -1}
         onKeyDown={hasMany ? handleKeyDown : undefined}
         aria-roledescription='גלריה'
@@ -43,7 +43,7 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
               type='button'
               onClick={() => go(-1)}
               aria-label='התמונה הקודמת'
-              className='absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
+              className='absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center bg-white/90 text-ink transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
             >
               <ChevronRight className='h-5 w-5' />
             </button>
@@ -51,11 +51,11 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
               type='button'
               onClick={() => go(1)}
               aria-label='התמונה הבאה'
-              className='absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
+              className='absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center bg-white/90 text-ink transition-opacity hover:bg-white md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
             >
               <ChevronLeft className='h-5 w-5' />
             </button>
-            <span className='absolute bottom-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-xs tabular-nums text-white'>
+            <span className='absolute bottom-3 left-3 bg-black/60 px-2.5 py-1 text-xs tabular-nums text-white'>
               {index + 1} / {photos.length}
             </span>
           </>
@@ -72,9 +72,9 @@ export function ImageGallery({ images, alt }: { images: string[]; alt: string })
               aria-label={`תמונה ${i + 1}`}
               aria-current={i === index}
               className={cn(
-                'h-16 w-24 shrink-0 overflow-hidden rounded-lg transition-opacity',
+                'h-16 w-24 shrink-0 overflow-hidden transition-opacity',
                 i === index
-                  ? 'ring-2 ring-gray-900 ring-offset-2'
+                  ? 'ring-2 ring-ink ring-offset-2 ring-offset-sand'
                   : 'opacity-60 hover:opacity-100',
               )}
             >

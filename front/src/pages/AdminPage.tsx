@@ -23,10 +23,10 @@ export function AdminPage() {
 
   return (
     <div>
-      <div className='border-b border-gray-100 bg-white'>
+      <div className='border-b border-line bg-sand'>
         <nav
           role='tablist'
-          className='mx-auto flex max-w-6xl gap-6 px-4'
+          className='mx-auto flex max-w-7xl gap-8 px-5 md:px-10'
           aria-label='ניהול'
         >
           {TABS.map((tab) => (
@@ -37,10 +37,10 @@ export function AdminPage() {
               aria-selected={activeTab === tab.id}
               onClick={() => selectTab(tab.id)}
               className={cn(
-                '-mb-px border-b-2 py-3 text-sm font-medium transition-colors',
+                '-mb-px min-h-12 border-b-2 py-3 text-[15px] font-semibold transition-colors',
                 activeTab === tab.id
-                  ? 'border-gray-900 text-gray-900'
-                  : 'border-transparent text-muted-foreground hover:text-gray-900',
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-muted-foreground hover:text-ink',
               )}
             >
               {tab.label}
@@ -52,9 +52,9 @@ export function AdminPage() {
       {activeTab === 'apartments' ? (
         <AdminDashboardPage />
       ) : (
-        <div className='mx-auto max-w-6xl space-y-6 px-4 py-8'>
+        <div className='mx-auto max-w-7xl space-y-8 px-5 py-10 md:px-10'>
           <header className='text-right'>
-            <h1 className='text-2xl font-bold tracking-tight text-gray-900'>
+            <h1 className='font-display text-6xl font-light leading-none'>
               סריקת יד2
             </h1>
             <p className='text-sm text-muted-foreground'>

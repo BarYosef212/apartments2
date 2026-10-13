@@ -10,6 +10,14 @@ import {
 import { ApartmentsResponse } from '../types/customHooks.types';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
 
+const GRID = 'grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3';
+
+const PAGE_TITLES: Record<string, string> = {
+  '': 'כל הנכסים',
+  sale: 'נכסים למכירה',
+  rent: 'נכסים להשכרה',
+};
+
 export function ApartmentsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { fetchApartments, fetchCities, fetchTypes } = useApartmentsApi();
@@ -141,21 +149,28 @@ export function ApartmentsListPage() {
         onApply={handleApplyClick}
       />
 
-      <div className='mx-auto max-w-6xl px-4 pb-10 pt-6'>
-        <header className='mb-8 flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between'>
-          <h1 className='text-3xl font-semibold tracking-tight text-gray-900 text-right'>
-            דירות
+      <div className='mx-auto max-w-7xl px-5 pb-24 pt-12 md:px-10'>
+        <header className='mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6'>
+          <h1 className='font-display text-[clamp(56px,6vw,84px)] font-light leading-none'>
+            {PAGE_TITLES[searchParams.get('dealType') ?? ''] ?? PAGE_TITLES['']}
           </h1>
+          {data && !isLoading && (
+            <p className='text-taupe'>
+              {data.totalResults === 1 ? 'נכס אחד' : `${data.totalResults} נכסים`}
+            </p>
+          )}
         </header>
         {isLoading && (
-          <div className='grid gap-5 sm:grid-cols-2 lg:grid-cols-3'>
-            {Array.from({ length: DEFAULT_CARD_SKELETON_COUNT }).map(
-              (_, index) => (
-                <div key={index} className='h-full'>
-                  <div className='animate-pulse rounded-2xl bg-muted h-72' />
+          <div className={GRID}>
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className='bg-white'>
+                <div className='aspect-[4/3] animate-pulse bg-muted' />
+                <div className='space-y-3 p-5'>
+                  <div className='h-8 w-1/2 animate-pulse bg-muted' />
+                  <div className='h-4 w-1/3 animate-pulse bg-muted' />
                 </div>
-              ),
-            )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -164,11 +179,11 @@ export function ApartmentsListPage() {
         {!isLoading && !error && (
           <>
             {apartments.length === 0 ? (
-              <p className='text-sm text-muted-foreground text-right'>
-                לא נמצאו דירות מתאימות. נסה לשנות את הסינון.
+              <p className='py-16 text-center text-lg text-taupe'>
+                לא נמצאו נכסים מתאימים. נסו לשנות את הסינון.
               </p>
             ) : (
-              <div className='grid gap-5 sm:grid-cols-2 lg:grid-cols-3'>
+              <div className={GRID}>
                 {apartments.map((apartment) => (
                   <ApartmentCard key={apartment._id} apartment={apartment} />
                 ))}

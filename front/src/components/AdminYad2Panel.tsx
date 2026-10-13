@@ -109,7 +109,7 @@ function StatusPill({ status }: { status?: ScrapeStatus }) {
   }
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
+      className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
     >
       {STATUS_LABELS[status]}
     </span>
@@ -252,21 +252,21 @@ export function AdminYad2Panel() {
   return (
     <div className='space-y-6'>
       {error && (
-        <div className='rounded-md border border-red-100 bg-red-50 p-3 text-sm text-red-600'>
+        <div className=' border border-red-100 bg-red-50 p-3 text-sm text-red-600'>
           {error}
         </div>
       )}
       {notice && !error && (
-        <div className='rounded-md border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700'>
+        <div className=' border border-line bg-sand p-3 text-sm text-ink'>
           {notice}
         </div>
       )}
 
       <div className='grid gap-6 lg:grid-cols-5'>
-        <Card className='border border-gray-100 p-6 shadow-sm lg:col-span-3'>
+        <Card className='border border-line p-6 lg:col-span-3'>
           <form onSubmit={handleSave} className='space-y-5 text-right'>
             <div>
-              <h2 className='text-base font-semibold text-gray-900'>
+              <h2 className='font-display text-3xl font-light leading-none'>
                 הגדרות סריקה
               </h2>
               <p className='mt-1 text-sm text-muted-foreground'>
@@ -293,7 +293,7 @@ export function AdminYad2Panel() {
                       type='button'
                       onClick={() => removeUrl(index)}
                       aria-label={`הסרת קישור ${index + 1}`}
-                      className='flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-900'
+                      className='flex h-10 w-10 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-sand hover:text-ink'
                     >
                       <X className='h-4 w-4' />
                     </button>
@@ -304,7 +304,7 @@ export function AdminYad2Panel() {
                 <button
                   type='button'
                   onClick={addUrl}
-                  className='inline-flex items-center gap-1.5 rounded-md py-1 text-sm font-medium text-gray-700 hover:text-gray-900'
+                  className='inline-flex items-center gap-1.5 py-1 text-sm font-medium text-ink hover:text-ink'
                 >
                   <Plus className='h-4 w-4' />
                   הוספת קישור
@@ -334,7 +334,7 @@ export function AdminYad2Panel() {
 
               <div className='space-y-1.5'>
                 <span className='text-sm font-medium'>סריקה אוטומטית</span>
-                <label className='flex h-10 items-center gap-3 text-sm text-gray-700'>
+                <label className='flex h-10 items-center gap-3 text-sm text-ink'>
                   <Switch
                     checked={form.enabled}
                     onCheckedChange={(checked) =>
@@ -354,8 +354,8 @@ export function AdminYad2Panel() {
           </form>
         </Card>
 
-        <Card className='flex flex-col border border-gray-100 p-6 text-right shadow-sm lg:col-span-2'>
-          <h2 className='text-base font-semibold text-gray-900'>
+        <Card className='flex flex-col border border-line p-6 text-right lg:col-span-2'>
+          <h2 className='font-display text-3xl font-light leading-none'>
             סריקה אחרונה
           </h2>
 
@@ -381,7 +381,7 @@ export function AdminYad2Panel() {
           </dl>
 
           {result && (
-            <div className='mt-5 grid grid-cols-3 divide-x divide-x-reverse divide-gray-100 rounded-lg border border-gray-100 text-center'>
+            <div className='mt-5 grid grid-cols-3 divide-x divide-x-reverse divide-line border border-line text-center'>
               {[
                 { label: 'נוספו', value: result.added },
                 { label: 'עודכנו', value: result.updated },
@@ -400,7 +400,7 @@ export function AdminYad2Panel() {
           )}
 
           {status?.lastStatus === 'failed' && status.lastError && (
-            <p className='mt-4 whitespace-pre-line break-all rounded-md bg-red-50 p-3 text-xs text-red-700'>
+            <p className='mt-4 whitespace-pre-line break-all bg-red-50 p-3 text-xs text-red-700'>
               {translate(status.lastError)}
             </p>
           )}
@@ -423,15 +423,15 @@ export function AdminYad2Panel() {
         </Card>
       </div>
 
-      <Card className='overflow-hidden border border-gray-100 shadow-sm'>
-        <div className='border-b border-gray-100 px-6 py-4 text-right'>
-          <h2 className='text-base font-semibold text-gray-900'>
+      <Card className='overflow-hidden border border-line'>
+        <div className='border-b border-line px-6 py-4 text-right'>
+          <h2 className='font-display text-3xl font-light leading-none'>
             היסטוריית סריקות
           </h2>
         </div>
         <div className='overflow-x-auto'>
           <table className='min-w-full text-right text-xs md:text-sm'>
-            <thead className='bg-gray-50 text-gray-500'>
+            <thead className='bg-sand text-taupe'>
               <tr>
                 <th className='py-3 pl-4 pr-6 font-medium'>מועד</th>
                 <th className='py-3 pl-4 font-medium'>הפעלה</th>
@@ -441,7 +441,7 @@ export function AdminYad2Panel() {
                 <th className='py-3 pl-4 font-medium'>שגיאה</th>
               </tr>
             </thead>
-            <tbody className='divide-y divide-gray-100 bg-white'>
+            <tbody className='divide-y divide-line bg-white'>
               {logs.length === 0 ? (
                 <tr>
                   <td

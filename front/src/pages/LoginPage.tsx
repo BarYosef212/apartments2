@@ -30,11 +30,11 @@ export function LoginPage() {
   }
 
   return (
-    <div className='mx-auto flex min-h-screen max-w-md flex-col justify-center px-4'>
+    <div className='mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-16'>
       <Card>
-        <CardContent className='space-y-6'>
+        <CardContent className='space-y-8 p-8'>
           <div className='space-y-2 text-right'>
-            <h1 className='text-xl font-semibold tracking-tight text-gray-900'>
+            <h1 className='font-display text-5xl font-light leading-none'>
               כניסת מנהל
             </h1>
             <p className='text-sm text-muted-foreground'>
@@ -44,7 +44,7 @@ export function LoginPage() {
           <form onSubmit={handleSubmit} className='space-y-4'>
             <div className='space-y-1'>
               <label
-                className='text-xs font-medium text-gray-700'
+                className='text-xs font-medium text-ink'
                 htmlFor='email'
               >
                 אימייל
@@ -60,7 +60,7 @@ export function LoginPage() {
             </div>
             <div className='space-y-1 '>
               <label
-                className='text-xs font-medium text-gray-700'
+                className='text-xs font-medium text-ink'
                 htmlFor='password'
               >
                 סיסמה

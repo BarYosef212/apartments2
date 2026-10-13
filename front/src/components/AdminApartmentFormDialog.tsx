@@ -68,8 +68,8 @@ export function AdminApartmentFormDialog({
 
   return (
     <div className='fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm'>
-      <div className='w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl animate-in fade-in zoom-in duration-200'>
-        <h2 className='mb-4 text-lg font-semibold text-gray-900'>
+      <div className='w-full max-w-lg bg-white p-6 animate-in fade-in zoom-in duration-200'>
+        <h2 className='mb-6 font-display text-4xl font-light leading-none'>
           {initialData ? 'עריכת דירה' : 'הוספת דירה חדשה'}
         </h2>
         <form onSubmit={handleSubmit} className='space-y-4'>
@@ -168,7 +168,7 @@ export function AdminApartmentFormDialog({
               placeholder='https://...'
               dir='ltr'
               rows={4}
-              className='w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              className='w-full border border-border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             />
           </div>
 
@@ -221,7 +221,7 @@ export function AdminApartmentFormDialog({
           <div className='mt-6 flex justify-end gap-3'>
             <Button
               type='button'
-              className='bg-white !text-gray-700 border border-gray-200 hover:bg-gray-50'
+              className='bg-white !text-ink border border-line hover:bg-sand'
               onClick={onClose}
             >
               ביטול
