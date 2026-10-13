@@ -146,7 +146,7 @@ export function ApartmentDetailsPage() {
                   href={`tel:${contact.phone}`}
                   className='mt-3 flex min-h-12 w-full items-center justify-center border border-ink text-[15px] font-semibold hover:bg-ink hover:text-white'
                 >
-                  התקשרו: <span dir='ltr' className='ms-1.5'>{contact.phone}</span>
+                  התקשרו: <span dir='ltr' className='mr-1.5'>{contact.phone}</span>
                 </a>
               )}
               {contact?.whatsapp && (

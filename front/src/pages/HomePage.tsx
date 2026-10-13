@@ -315,7 +315,7 @@ export function HomePage() {
                   href={`tel:${phone}`}
                   className='inline-flex min-h-11 items-center border-b border-white/50 text-[17px] hover:border-white'
                 >
-                  או התקשרו: <span dir='ltr' className='ms-1.5'>{phone}</span>
+                  או התקשרו: <span dir='ltr' className='mr-1.5'>{phone}</span>
                 </a>
               )}
             </div>

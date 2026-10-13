@@ -53,7 +53,7 @@ export function SiteFooter() {
                 </a>
               )}
               {contact.email && (
-                <a href={`mailto:${contact.email}`} className='hover:opacity-70'>
+                <a href={`mailto:${contact.email}`} className='break-all hover:opacity-70'>
                   {contact.email}
                 </a>
               )}
