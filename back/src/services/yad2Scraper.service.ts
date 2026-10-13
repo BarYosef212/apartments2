@@ -77,7 +77,7 @@ async function persist(listings: Yad2Listing[], runStartedAt: Date): Promise<Scr
       if (embedding) set.embedding = embedding;
     }
 
-    await Apartment.updateOne({ externalId: l.externalId }, { $set: set, $setOnInsert: { externalId: l.externalId } }, { upsert: true });
+    await Apartment.updateOne({ externalId: l.externalId }, { $set: set }, { upsert: true });
     if (existing) counts.updated++;
     else counts.added++;
   }
