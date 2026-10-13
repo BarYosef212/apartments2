@@ -4,6 +4,7 @@ import { Apartment } from '../types/apartment.types';
 import { Button, Badge } from '../components/ui';
 import { useApartmentsApi } from '../hooks/useApartmentsApi';
 import { useChat } from '../contexts/ChatContext';
+import { ImageGallery } from '../components/ImageGallery';
 
 function formatPrice(value: number) {
   if (Number.isNaN(value)) return value;
@@ -66,15 +67,14 @@ export function ApartmentDetailsPage() {
 
       {!isLoading && !error && apartment && (
         <div className='space-y-6'>
-          <div className='overflow-hidden rounded-2xl border border-border bg-muted'>
-            <div className='aspect-[16/9] w-full'>
-              <img
-                src={apartment.img}
-                alt={apartment.street}
-                className='h-full w-full object-cover'
-              />
-            </div>
-          </div>
+          <ImageGallery
+            images={
+              apartment.images?.length
+                ? apartment.images
+                : [apartment.img].filter(Boolean)
+            }
+            alt={`${apartment.street}, ${apartment.city}`}
+          />
 
           <div className='grid gap-6 md:grid-cols-[2fr,1fr]'>
             <div className='space-y-3 text-right'>

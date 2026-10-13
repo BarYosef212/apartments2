@@ -6,7 +6,7 @@ import {
 } from '../types/component.types';
 
 const emptyForm: ApartmentFormState = {
-  img: '',
+  images: '',
   price: 0,
   street: '',
   city: '',
@@ -33,7 +33,10 @@ export function AdminApartmentFormDialog({
   useEffect(() => {
     if (initialData) {
       setForm({
-        img: initialData.img,
+        images: (initialData.images?.length
+          ? initialData.images
+          : [initialData.img].filter(Boolean)
+        ).join('\n'),
         price: initialData.price,
         street: initialData.street,
         city: initialData.city,
@@ -152,12 +155,17 @@ export function AdminApartmentFormDialog({
           </div>
 
           <div className='space-y-1'>
-            <FormLabel required={false}>קישור לתמונה</FormLabel>
+            <FormLabel required={false}>
+              קישורים לתמונות (אחד בכל שורה, הראשון הוא התמונה הראשית)
+            </FormLabel>
 
-            <Input
-              value={form.img}
-              onChange={(e) => handleChange('img', e.target.value)}
+            <textarea
+              value={form.images}
+              onChange={(e) => handleChange('images', e.target.value)}
               placeholder='https://...'
+              dir='ltr'
+              rows={4}
+              className='w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             />
           </div>
 

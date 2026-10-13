@@ -19,6 +19,8 @@ export interface ApartmentDocument extends Document {
   images?: string[];
   active?: boolean;
   lastSeenAt?: Date;
+  /** When the item page itself (full image gallery) was last scraped. */
+  detailsFetchedAt?: Date;
 }
 
 export type ScrapeStatus = 'success' | 'failed' | 'running';

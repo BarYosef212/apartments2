@@ -1,5 +1,5 @@
 import path from 'path';
-import { chromium, BrowserContext, Page } from 'playwright';
+import { chromium, BrowserContext, Page, Response } from 'playwright';
 
 /** Normalised listing as extracted from Yad2 (no DB access in this file). */
 export interface Yad2Listing {
@@ -177,40 +177,122 @@ async function launch(): Promise<BrowserContext> {
   });
 }
 
-/**
- * Open the Yad2 URL and extract listings. Does not touch the DB.
- * Throws Yad2BlockedError when a bot-protection challenge is detected (never tries to bypass it).
- */
-export async function extractListings(url: string): Promise<ExtractResult> {
-  const context = await launch();
-  try {
-    const page: Page = await context.newPage();
-    const xhrJson: unknown[] = [];
-    page.on('response', async (resp) => {
-      try {
-        const u = resp.url();
-        if (!/yad2\.co\.il/.test(u) || !/gw|api|feed/i.test(u)) return;
-        if (!(resp.headers()['content-type'] || '').includes('json')) return;
-        xhrJson.push(await resp.json());
-      } catch {
-        /* ignore unreadable bodies */
-      }
-    });
+const YAD2_IMAGE_RE = /^https:\/\/img\.yad2\.co\.il\/.+\.(jpe?g|png|webp)(\?.*)?$/i;
 
+/** Collect Yad2 image URLs under `node`, without descending into other listings. */
+function collectImages(node: unknown, externalId: string, out: Map<string, string>, depth = 0) {
+  if (depth > 15 || node == null) return;
+  if (typeof node === 'string') {
+    if (YAD2_IMAGE_RE.test(node)) {
+      const key = node.split('?')[0];
+      if (!out.has(key)) out.set(key, node);
+    }
+    return;
+  }
+  if (typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    for (const el of node) collectImages(el, externalId, out, depth + 1);
+    return;
+  }
+  const o = node as Record<string, any>;
+  // Item pages also show "similar listings"; skip those.
+  if (depth > 0 && looksLikeListing(o) && String(o.token ?? o.orderId ?? o.adNumber ?? o.id) !== externalId) return;
+  for (const v of Object.values(o)) collectImages(v, externalId, out, depth + 1);
+}
+
+/** Find the objects describing `externalId` anywhere in the JSON. */
+function findItemObjects(root: unknown, externalId: string): Record<string, any>[] {
+  const out: Record<string, any>[] = [];
+  const seen = new Set<unknown>();
+  const walk = (node: unknown, depth: number) => {
+    if (!node || typeof node !== 'object' || depth > 25 || seen.has(node)) return;
+    seen.add(node);
+    const o = asObj(node);
+    if (o && [o.token, o.orderId, o.adNumber, o.id].some((v) => v != null && String(v) === externalId)) {
+      out.push(o);
+      return;
+    }
+    for (const v of Object.values(node as Record<string, unknown>)) walk(v, depth + 1);
+  };
+  walk(root, 0);
+  return out;
+}
+
+/** Opens `url`, waits for it to settle, and returns its HTML plus Yad2 JSON responses. */
+async function loadPage(page: Page, url: string): Promise<{ json: unknown[] }> {
+  const json: unknown[] = [];
+  const onResponse = async (resp: Response) => {
+    try {
+      const u = resp.url();
+      if (!/yad2\.co\.il/.test(u) || !/gw|api|feed/i.test(u)) return;
+      if (!(resp.headers()['content-type'] || '').includes('json')) return;
+      json.push(await resp.json());
+    } catch {
+      /* ignore unreadable bodies */
+    }
+  };
+  page.on('response', onResponse);
+  try {
     const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => undefined);
-
     const html = await page.content();
     if (looksBlocked(html, resp?.status())) throw new Yad2BlockedError();
-
-    const raws: Record<string, any>[] = [];
     const nextData = parseNextData(html);
-    if (nextData) raws.push(...findListingObjects(nextData));
-    for (const j of xhrJson) raws.push(...findListingObjects(j));
-
-    const mapped = raws.map(mapListing).filter((x): x is Yad2Listing => !!x);
-    return { listings: dedupe(mapped), candidates: raws.length };
+    if (nextData) json.unshift(nextData);
+    return { json };
   } finally {
-    await context.close().catch(() => undefined);
+    page.off('response', onResponse);
+  }
+}
+
+export interface Yad2Session {
+  /** Extract the listings shown on a Yad2 list page (e.g. an agency page). */
+  extractListings(url: string): Promise<ExtractResult>;
+  /** Open a single listing page and return all of its images. */
+  extractItemImages(listing: Pick<Yad2Listing, 'externalId' | 'externalUrl'>): Promise<string[]>;
+  close(): Promise<void>;
+}
+
+/**
+ * Opens one browser for a whole scan, so the list pages and item pages share
+ * cookies. Methods throw Yad2BlockedError when a bot-protection challenge is
+ * detected (never tries to bypass it). Does not touch the DB.
+ */
+export async function openYad2Session(): Promise<Yad2Session> {
+  const context = await launch();
+  const page = await context.newPage();
+
+  return {
+    async extractListings(url) {
+      const { json } = await loadPage(page, url);
+      const raws = json.flatMap((j) => findListingObjects(j));
+      const mapped = raws.map(mapListing).filter((x): x is Yad2Listing => !!x);
+      return { listings: dedupe(mapped), candidates: raws.length };
+    },
+
+    async extractItemImages({ externalId, externalUrl }) {
+      // Only images inside this item's own data: the rendered page also shows
+      // other listings ("similar ads"), so scraping the HTML would mix them in.
+      const { json } = await loadPage(page, externalUrl);
+      const found = new Map<string, string>();
+      for (const j of json) {
+        for (const item of findItemObjects(j, externalId)) collectImages(item, externalId, found);
+      }
+      return [...found.values()];
+    },
+
+    async close() {
+      await context.close().catch(() => undefined);
+    },
+  };
+}
+
+/** One-off helper: open a browser, extract one list page, close. */
+export async function extractListings(url: string): Promise<ExtractResult> {
+  const session = await openYad2Session();
+  try {
+    return await session.extractListings(url);
+  } finally {
+    await session.close();
   }
 }

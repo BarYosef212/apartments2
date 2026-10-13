@@ -148,8 +148,15 @@ export function AdminDashboardPage() {
     setIsSaving(true);
     setError(null);
 
+    const images: string[] = formData.images
+      .split('\n')
+      .map((url: string) => url.trim())
+      .filter(Boolean);
+
     const payload = {
       ...formData,
+      images,
+      img: images[0] ?? '',
       tags:
         typeof formData.tags === 'string'
           ? formData.tags

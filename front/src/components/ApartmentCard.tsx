@@ -34,6 +34,11 @@ export function ApartmentCard({
               className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]'
             />
           </div>
+          {(apartment.images?.length ?? 0) > 1 && (
+            <span className='absolute bottom-3 left-3 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[11px] tabular-nums text-white'>
+              {apartment.images!.length} תמונות
+            </span>
+          )}
           {premium && (
             <div className='absolute right-3 top-3 z-10'>
               <span className='rounded-full bg-amber-400/90 px-2 py-1 text-[10px] font-semibold text-white shadow-md'>

@@ -21,6 +21,7 @@ const ApartmentSchema = new Schema<ApartmentDocument>(
     images: { type: [String], default: [] },
     active: { type: Boolean, default: true, index: true },
     lastSeenAt: { type: Date, required: false },
+    detailsFetchedAt: { type: Date, required: false },
   },
   { timestamps: true }
 );

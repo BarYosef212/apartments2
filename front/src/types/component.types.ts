@@ -37,7 +37,8 @@ export interface SearchInputProps {
 }
 
 export interface ApartmentFormState {
-  img: string;
+  /** One image URL per line; the first is the cover image. */
+  images: string;
   price: number;
   street: string;
   city: string;

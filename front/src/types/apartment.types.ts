@@ -1,6 +1,7 @@
 export interface Apartment {
   _id: string;
   img: string;
+  images?: string[];
   price: number;
   street: string;
   city: string;

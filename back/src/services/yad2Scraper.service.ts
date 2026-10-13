@@ -3,7 +3,7 @@ import { ScrapeLog } from '../models/ScrapeLog.model';
 import { getSettingsDoc } from '../models/ScraperSettings.model';
 import { EmbeddingController } from '../controllers/embedding.controller';
 import { ScrapeCounts } from '../types/models.types';
-import { extractListings, Yad2Listing } from './yad2Extractor';
+import { openYad2Session, Yad2BlockedError, Yad2Listing, Yad2Session } from './yad2Extractor';
 
 export type ScrapeTrigger = 'manual' | 'schedule';
 
@@ -13,6 +13,11 @@ export class ScrapeAlreadyRunningError extends Error {
     this.name = 'ScrapeAlreadyRunningError';
   }
 }
+
+// Item pages are visited one by one; keep the pace gentle and the run bounded.
+const ITEM_PAGE_DELAY_MS = 3000;
+const MAX_ITEM_PAGES_PER_RUN = 60;
+const DETAILS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 let running = false;
 let ec: EmbeddingController | null = null;
@@ -51,6 +56,46 @@ function isValid(l: Yad2Listing) {
   return !!(l.price && l.price > 0 && l.street && l.city && l.type);
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Visits the item page of listings that are new, changed in price, or not
+ * checked recently, and replaces their images with the full gallery.
+ * Returns the ids whose gallery was fetched. Stops early if Yad2 blocks us;
+ * those listings keep the images from the list page.
+ */
+async function fetchGalleries(session: Yad2Session, listings: Yad2Listing[]): Promise<Set<string>> {
+  const existing = await Apartment.find({ externalId: { $in: listings.map((l) => l.externalId) } })
+    .select('externalId price detailsFetchedAt')
+    .lean();
+  const byId = new Map(existing.map((e) => [e.externalId, e]));
+  const staleBefore = Date.now() - DETAILS_MAX_AGE_MS;
+
+  const due = listings
+    .filter((l) => {
+      const e = byId.get(l.externalId);
+      return !e || !e.detailsFetchedAt || e.detailsFetchedAt.getTime() < staleBefore || e.price !== l.price;
+    })
+    .slice(0, MAX_ITEM_PAGES_PER_RUN);
+
+  const fetched = new Set<string>();
+  for (const [i, l] of due.entries()) {
+    if (i > 0) await sleep(ITEM_PAGE_DELAY_MS);
+    try {
+      const images = await session.extractItemImages(l);
+      if (images.length > 0) l.images = images;
+      fetched.add(l.externalId);
+    } catch (err) {
+      if (err instanceof Yad2BlockedError) {
+        console.warn(`[scraper] blocked on item pages after ${fetched.size}/${due.length}; keeping list images`);
+        break;
+      }
+      console.error(`[scraper] item ${l.externalId} failed:`, (err as Error).message);
+    }
+  }
+  return fetched;
+}
+
 /**
  * Upserts listings and returns counts. Listings not seen in this run are
  * deactivated only when `deactivateMissing` is set, i.e. every URL was scanned.
@@ -58,7 +103,8 @@ function isValid(l: Yad2Listing) {
 async function persist(
   listings: Yad2Listing[],
   runStartedAt: Date,
-  deactivateMissing: boolean
+  deactivateMissing: boolean,
+  galleriesFetched: Set<string>
 ): Promise<ScrapeCounts> {
   const counts: ScrapeCounts = { added: 0, updated: 0, deactivated: 0, total: listings.length, skipped: 0 };
 
@@ -68,7 +114,7 @@ async function persist(
       continue;
     }
     const doc = toDoc(l);
-    const existing = await Apartment.findOne({ externalId: l.externalId }).select('price city street type rooms size');
+    const existing = await Apartment.findOne({ externalId: l.externalId }).select('price city street type rooms size detailsFetchedAt');
     const changed =
       !existing ||
       existing.price !== doc.price ||
@@ -79,6 +125,13 @@ async function persist(
       existing.size !== doc.size;
 
     const set: Record<string, any> = { ...doc, source: 'yad2', active: true, lastSeenAt: new Date() };
+    if (galleriesFetched.has(l.externalId)) {
+      set.detailsFetchedAt = new Date();
+    } else if (existing?.detailsFetchedAt) {
+      // Keep the full gallery from an earlier run over the list page's preview.
+      delete set.images;
+      delete set.img;
+    }
     if (changed) {
       const embedding = await tryEmbed(doc);
       if (embedding) set.embedding = embedding;
@@ -97,6 +150,43 @@ async function persist(
   );
   counts.deactivated = res.modifiedCount;
   return counts;
+}
+
+/**
+ * Scans each list URL in turn (a listing may appear in more than one), then
+ * fetches the full galleries, all in one browser session.
+ */
+async function scanUrls(urls: string[]) {
+  const byId = new Map<string, Yad2Listing>();
+  const failures: string[] = [];
+  let galleriesFetched = new Set<string>();
+
+  const session = await openYad2Session();
+  try {
+    for (const url of urls) {
+      try {
+        const { listings } = await session.extractListings(url);
+        if (!listings.some(isValid)) {
+          throw new Error(
+            listings.length === 0
+              ? 'Scan found 0 listings (page structure may have changed)'
+              : `Scan found ${listings.length} items but none had the required fields`
+          );
+        }
+        for (const l of listings) byId.set(l.externalId, l);
+      } catch (err) {
+        const msg = (err as Error).message || 'Unknown error';
+        console.error(`[scraper] ${url} failed:`, msg);
+        failures.push(urls.length === 1 ? msg : `${url}: ${msg}`);
+      }
+    }
+    if (failures.length < urls.length) {
+      galleriesFetched = await fetchGalleries(session, [...byId.values()].filter(isValid));
+    }
+  } finally {
+    await session.close();
+  }
+  return { listings: [...byId.values()], failures, galleriesFetched };
 }
 
 /**
@@ -119,32 +209,12 @@ export async function runScrape(trigger: ScrapeTrigger): Promise<void> {
     const urls = settings.yad2Urls;
     if (urls.length === 0) throw new Error('Yad2 URL is not configured');
 
-    // Scan the URLs one after another; a listing may appear in more than one.
-    const byId = new Map<string, Yad2Listing>();
-    const failures: string[] = [];
-    for (const url of urls) {
-      try {
-        const { listings } = await extractListings(url);
-        if (!listings.some(isValid)) {
-          throw new Error(
-            listings.length === 0
-              ? 'Scan found 0 listings (page structure may have changed)'
-              : `Scan found ${listings.length} items but none had the required fields`
-          );
-        }
-        for (const l of listings) byId.set(l.externalId, l);
-      } catch (err) {
-        const msg = (err as Error).message || 'Unknown error';
-        console.error(`[scraper] ${url} failed:`, msg);
-        failures.push(urls.length === 1 ? msg : `${url}: ${msg}`);
-      }
-    }
-
+    const { listings, failures, galleriesFetched } = await scanUrls(urls);
     if (failures.length === urls.length) throw new Error(failures.join('\n'));
 
     // A failed URL would make its listings look removed, so only deactivate
     // when every URL was scanned successfully.
-    const counts = await persist([...byId.values()], startedAt, failures.length === 0);
+    const counts = await persist(listings, startedAt, failures.length === 0, galleriesFetched);
     settings.lastResult = counts;
     log.counts = counts;
     if (failures.length > 0) {
