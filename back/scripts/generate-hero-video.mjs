@@ -2,7 +2,10 @@
 //
 // Usage (from back/): put GEMINI_API_KEY=your-key in back/.env, then
 //   node scripts/generate-hero-video.mjs
-// Optional: VEO_MODEL=veo-3.1-fast-generate-preview (sharper, costs more)
+// Optional:
+//   VIDEO_SCENE=villa | penthouse | livingroom (default)
+//   VEO_MODEL=veo-3.1-generate-preview (best, 1080p) or
+//             veo-3.1-fast-generate-preview (1080p, cheaper); default is Lite, 720p
 //
 // The key is read from back/.env (not committed) or the environment, and is
 // never printed or written anywhere.
@@ -19,12 +22,34 @@ const MODEL = process.env.VEO_MODEL || 'veo-3.1-lite-generate-preview';
 const OUT = new URL('../hero-video.mp4', import.meta.url);
 const API = 'https://generativelanguage.googleapis.com/v1beta';
 
-const PROMPT =
-  'Slow cinematic dolly shot gliding through a modern luxury living room in warm golden evening light. ' +
-  'Floor-to-ceiling windows overlook a Mediterranean city skyline at sunset. Neutral palette of warm stone, ' +
-  'travertine, oak wood and cream fabrics, minimal designer furniture, soft shadows. Calm, steady, smooth ' +
-  'camera movement, architectural real estate film, photorealistic, high detail. Empty room with no people, ' +
-  'no text, no logos.';
+// Scenes to choose from with VIDEO_SCENE=<name>. Mood footage for the hero,
+// not any real listing.
+const SCENES = {
+  livingroom:
+    'Slow cinematic dolly shot gliding through a modern luxury living room in warm golden evening light. ' +
+    'Floor-to-ceiling windows overlook a Mediterranean city skyline at sunset. Neutral palette of warm stone, ' +
+    'travertine, oak wood and cream fabrics, minimal designer furniture, soft shadows.',
+  villa:
+    'Slow aerial drone shot descending toward a modern minimalist luxury villa on a hillside above the ' +
+    'Mediterranean Sea at golden hour. White stone walls, large glass facades, a long infinity pool reflecting ' +
+    'the warm sunset sky, olive trees and landscaped terraces, soft long shadows, calm turquoise sea.',
+  penthouse:
+    'Slow cinematic push-in through open floor-to-ceiling glass doors onto a luxury penthouse terrace at blue ' +
+    'hour, overlooking a Mediterranean coastal city skyline with warm city lights and the sea at the horizon. ' +
+    'Travertine floor, sculptural outdoor furniture, olive tree in a stone planter, soft warm interior glow.',
+};
+const STYLE =
+  ' Smooth, steady, slow camera movement, high-end architectural real estate film, photorealistic, ' +
+  'natural light, rich detail, shallow depth of field. No people, no text, no logos, no watermark.';
+
+const SCENE = process.env.VIDEO_SCENE || 'livingroom';
+if (!SCENES[SCENE]) {
+  console.error(`Unknown VIDEO_SCENE "${SCENE}". Choose one of: ${Object.keys(SCENES).join(', ')}`);
+  process.exit(1);
+}
+const PROMPT = SCENES[SCENE] + STYLE;
+// Lite only renders 720p; the full and fast models can do 1080p.
+const RESOLUTION = MODEL.includes('lite') ? undefined : '1080p';
 
 if (!KEY) {
   console.error('Add a line GEMINI_API_KEY=your-key to back/.env, save, and run again.');
@@ -42,12 +67,12 @@ async function call(url, init) {
 }
 
 try {
-  console.log(`Requesting an 8-second 16:9 video from ${MODEL}…`);
+  console.log(`Requesting an 8-second 16:9 ${RESOLUTION ?? '720p'} "${SCENE}" video from ${MODEL}…`);
   const op = await call(`${API}/models/${MODEL}:predictLongRunning`, {
     method: 'POST',
     body: JSON.stringify({
       instances: [{ prompt: PROMPT }],
-      parameters: { aspectRatio: '16:9', durationSeconds: 8 },
+      parameters: { aspectRatio: '16:9', durationSeconds: 8, ...(RESOLUTION && { resolution: RESOLUTION }) },
     }),
   });
 
