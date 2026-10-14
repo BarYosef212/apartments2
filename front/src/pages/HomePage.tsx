@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -409,10 +409,13 @@ function HeroMedia({
   settings: SiteSettings;
   fallback?: Apartment;
 }) {
-  const { kind, url } = settings.heroMedia;
+  const { kind, url, more = [] } = settings.heroMedia;
   const fallbackSrc = fallback && sizedImage(coverOf(fallback), 1600);
   const cover = 'absolute inset-0 h-full w-full object-cover';
 
+  if (url && kind === 'video' && more.length > 0) {
+    return <HeroVideoSequence clips={[url, ...more]} poster={fallbackSrc} />;
+  }
   if (url && kind === 'video') {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     return (
@@ -431,4 +434,57 @@ function HeroMedia({
   const src = url ? mediaUrl(url) : fallbackSrc;
   if (!src) return null;
   return <img src={src} alt='' className={cover} />;
+}
+
+const CROSSFADE_SECONDS = 1;
+
+/**
+ * Plays the hero videos one after another, crossfading into the next one
+ * shortly before each ends, and loops back to the first.
+ */
+function HeroVideoSequence({ clips, poster }: { clips: string[]; poster?: string }) {
+  const refs = useRef<(HTMLVideoElement | null)[]>([]);
+  const [active, setActive] = useState(0);
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  useEffect(() => {
+    if (!reduceMotion) refs.current[0]?.play().catch(() => {});
+  }, []);
+
+  function handleTimeUpdate(index: number) {
+    const video = refs.current[index];
+    if (index !== active || !video?.duration) return;
+    if (video.duration - video.currentTime > CROSSFADE_SECONDS) return;
+    const next = (index + 1) % clips.length;
+    const nextVideo = refs.current[next];
+    if (!nextVideo || next === index) return;
+    nextVideo.currentTime = 0;
+    nextVideo.play().catch(() => {});
+    setActive(next);
+  }
+
+  return (
+    <>
+      {clips.map((clip, index) => (
+        <video
+          key={clip}
+          ref={(el) => {
+            refs.current[index] = el;
+          }}
+          src={mediaUrl(clip)}
+          poster={index === 0 ? poster : undefined}
+          muted
+          playsInline
+          // The first two load right away; later ones as their turn nears.
+          preload={index < 2 ? 'auto' : 'metadata'}
+          aria-hidden='true'
+          onTimeUpdate={() => handleTimeUpdate(index)}
+          className={cn(
+            'absolute inset-0 h-full w-full object-cover transition-opacity duration-1000',
+            index === active ? 'opacity-100' : 'opacity-0',
+          )}
+        />
+      ))}
+    </>
+  );
 }

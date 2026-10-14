@@ -8,6 +8,7 @@ const CONTACT_FIELDS = ['phone', 'whatsapp', 'email', 'address', 'license', 'lea
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TEXT_FIELDS = ['heroEyebrow', 'heroTitle', 'heroSubtitle', 'ownersTitle', 'ownersText'] as const;
 const MAX_TEXT = 400;
+const MAX_HERO_CLIPS = 5;
 
 /** Media must be one of our uploads or an https URL; '' clears it. */
 function validMediaUrl(value: string) {
@@ -67,9 +68,16 @@ export class SiteController {
       if (heroMedia !== undefined) {
         const url = String(heroMedia?.url ?? '').trim();
         const kind = heroMedia?.kind === 'video' ? 'video' : 'image';
-        if (!validMediaUrl(url)) return res.status(400).json({ message: 'Invalid media URL' });
-        if (s.heroMedia.url !== url) replaced.push(s.heroMedia.url);
-        s.heroMedia = { kind, url };
+        // A sequence only makes sense for videos.
+        const more: string[] =
+          kind === 'video' && url && Array.isArray(heroMedia?.more)
+            ? heroMedia.more.map((u: unknown) => String(u).trim()).filter(Boolean)
+            : [];
+        if (more.length > MAX_HERO_CLIPS - 1) return res.status(400).json({ message: 'Too many videos' });
+        if (![url, ...more].every(validMediaUrl)) return res.status(400).json({ message: 'Invalid media URL' });
+        const kept = new Set([url, ...more]);
+        replaced.push(...[s.heroMedia.url, ...(s.heroMedia.more ?? [])].filter((u) => !kept.has(u)));
+        s.heroMedia = { kind, url, more };
       }
 
       if (ownersImage !== undefined) {

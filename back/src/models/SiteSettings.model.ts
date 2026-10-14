@@ -9,6 +9,8 @@ const SiteSettingsSchema = new Schema<SiteSettingsDocument>(
         {
           kind: { type: String, enum: ['image', 'video'], default: 'image' },
           url: { type: String, default: '' },
+          // Videos played after `url`, one after another, then looped.
+          more: { type: [String], default: [] },
         },
         { _id: false }
       ),

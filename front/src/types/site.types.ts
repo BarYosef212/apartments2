@@ -30,7 +30,7 @@ export interface SmtpSettings {
 export interface SiteSettings {
   smtp?: SmtpSettings;
   /** An empty url means the home page picks a photo from the listings. */
-  heroMedia: { kind: MediaKind; url: string };
+  heroMedia: { kind: MediaKind; url: string; /** Videos played after url, in order. */ more?: string[] };
   ownersImage: string;
   texts: SiteTexts;
   contact: SiteContact;

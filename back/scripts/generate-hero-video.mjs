@@ -9,7 +9,7 @@
 //
 // The key is read from back/.env (not committed) or the environment, and is
 // never printed or written anywhere.
-// The video is saved to back/hero-video.mp4; upload it in the admin under
+// The video is saved to back/hero-video-<scene>.mp4; upload it in the admin under
 // Site settings, or ask Claude to set it.
 
 import fs from 'fs';
@@ -19,7 +19,6 @@ dotenv.config({ path: new URL('../.env', import.meta.url).pathname, quiet: true 
 
 const KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.VEO_MODEL || 'veo-3.1-lite-generate-preview';
-const OUT = new URL('../hero-video.mp4', import.meta.url);
 const API = 'https://generativelanguage.googleapis.com/v1beta';
 
 // Scenes to choose from with VIDEO_SCENE=<name>. Mood footage for the hero,
@@ -66,6 +65,8 @@ if (!SCENES[SCENE]) {
   process.exit(1);
 }
 const PROMPT = SCENES[SCENE] + STYLE;
+// One file per scene, so a new scene doesn't overwrite the last one.
+const OUT = new URL(`../hero-video-${SCENE}.mp4`, import.meta.url);
 // Lite only renders 720p; the full and fast models can do 1080p.
 const RESOLUTION = MODEL.includes('lite') ? undefined : '1080p';
 

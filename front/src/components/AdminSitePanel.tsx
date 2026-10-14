@@ -125,11 +125,41 @@ export function AdminSitePanel() {
           current={saved.heroMedia.url ? saved.heroMedia : null}
           onUpload={async (file, onProgress) => {
             const { url, kind } = await uploadMedia(file, onProgress);
-            await save({ heroMedia: { kind, url } }, 'המדיה בעמוד הבית עודכנה.');
+            // Replacing the first video keeps the rest of the sequence.
+            const more = kind === 'video' ? saved.heroMedia.more ?? [] : [];
+            await save({ heroMedia: { kind, url, more } }, 'המדיה בעמוד הבית עודכנה.');
           }}
-          onClear={() => save({ heroMedia: { kind: 'image', url: '' } }, 'חזרה לתמונה אוטומטית.')}
+          onClear={() =>
+            save({ heroMedia: { kind: 'image', url: '', more: [] } }, 'חזרה לתמונה אוטומטית.')
+          }
           onError={setError}
-        />
+        >
+          {saved.heroMedia.kind === 'video' && saved.heroMedia.url && (
+            <HeroSequence
+              clips={[saved.heroMedia.url, ...(saved.heroMedia.more ?? [])]}
+              onAdd={async (file, onProgress) => {
+                const { url, kind } = await uploadMedia(file, onProgress);
+                if (kind !== 'video') throw new Error('not a video');
+                await save(
+                  { heroMedia: { ...saved.heroMedia, more: [...(saved.heroMedia.more ?? []), url] } },
+                  'הסרטון נוסף לרצף.',
+                );
+              }}
+              onRemove={(clip) =>
+                save(
+                  {
+                    heroMedia: {
+                      ...saved.heroMedia,
+                      more: (saved.heroMedia.more ?? []).filter((u) => u !== clip),
+                    },
+                  },
+                  'הסרטון הוסר מהרצף.',
+                )
+              }
+              onError={setError}
+            />
+          )}
+        </MediaPicker>
         <MediaPicker
           title='תמונה לחלק של בעלי הנכסים'
           description='בלי בחירה, מוצגת תמונה של אחד הנכסים.'
@@ -242,6 +272,7 @@ function MediaPicker({
   onUpload,
   onClear,
   onError,
+  children,
 }: {
   title: string;
   description: string;
@@ -250,6 +281,7 @@ function MediaPicker({
   onUpload: (file: File, onProgress: (percent: number) => void) => Promise<void>;
   onClear: () => Promise<void>;
   onError: (message: string) => void;
+  children?: React.ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -340,6 +372,7 @@ function MediaPicker({
           </Button>
         )}
       </div>
+      {children}
     </Card>
   );
 }
@@ -568,5 +601,92 @@ function MailCard({
         </div>
       </Card>
     </form>
+  );
+}
+
+/** The hero videos played one after another (the first is the one above). */
+function HeroSequence({
+  clips,
+  onAdd,
+  onRemove,
+  onError,
+}: {
+  clips: string[];
+  onAdd: (file: File, onProgress: (percent: number) => void) => Promise<void>;
+  onRemove: (clip: string) => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      onError(`הקובץ גדול מדי (עד ${MAX_UPLOAD_MB}MB).`);
+      return;
+    }
+    setProgress(0);
+    try {
+      await onAdd(file, setProgress);
+    } catch (err) {
+      onError(errorMessage(err, 'ההעלאה נכשלה. אפשר להוסיף לרצף רק סרטונים.'));
+    } finally {
+      setProgress(null);
+    }
+  }
+
+  return (
+    <div className='space-y-3 border-t border-line pt-4'>
+      <p className={LABEL}>סרטונים ברצף ({clips.length})</p>
+      <p className='-mt-2 text-xs text-taupe'>
+        מתנגנים אחד אחרי השני במעבר רך, ואז חוזרים להתחלה.
+      </p>
+      <ol className='grid grid-cols-2 gap-3 sm:grid-cols-3'>
+        {clips.map((clip, index) => (
+          <li key={clip} className='relative aspect-video overflow-hidden bg-[#E6E0D6]'>
+            <video src={mediaUrl(clip)} muted preload='metadata' className='h-full w-full object-cover' />
+            <span className='absolute right-1.5 top-1.5 bg-white/90 px-1.5 text-xs tabular-nums'>
+              {index + 1}
+            </span>
+            {index > 0 && (
+              <button
+                type='button'
+                onClick={() => onRemove(clip).catch(() => onError('ההסרה נכשלה.'))}
+                aria-label={`הסרת סרטון ${index + 1} מהרצף`}
+                className='absolute bottom-1.5 left-1.5 bg-white/90 px-2 py-1 text-xs font-semibold hover:bg-white'
+              >
+                הסרה
+              </button>
+            )}
+          </li>
+        ))}
+      </ol>
+      {progress !== null && (
+        <div className='h-1 bg-line'>
+          <div className='h-full bg-ink transition-all' style={{ width: `${progress}%` }} />
+        </div>
+      )}
+      <input
+        ref={inputRef}
+        type='file'
+        accept={VIDEO_TYPES}
+        className='sr-only'
+        tabIndex={-1}
+        aria-hidden='true'
+        onChange={handleFile}
+      />
+      {clips.length < 5 && (
+        <Button
+          type='button'
+          variant='outline'
+          disabled={progress !== null}
+          onClick={() => inputRef.current?.click()}
+        >
+          {progress !== null ? `מעלה… ${progress}%` : 'הוספת סרטון לרצף'}
+        </Button>
+      )}
+    </div>
   );
 }
