@@ -3,3 +3,4 @@ node_modules/
 dist/
 .playwright-profile/
 uploads/
+hero-video.mp4
