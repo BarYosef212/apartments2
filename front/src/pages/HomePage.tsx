@@ -448,6 +448,9 @@ function HeroVideoSequence({ clips, poster }: { clips: string[]; poster?: string
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
+    // React doesn't reliably reflect `muted` before play(); browsers only
+    // autoplay muted video.
+    refs.current.forEach((video) => video && (video.muted = true));
     if (!reduceMotion) refs.current[0]?.play().catch(() => {});
   }, []);
 
@@ -473,6 +476,7 @@ function HeroVideoSequence({ clips, poster }: { clips: string[]; poster?: string
           }}
           src={mediaUrl(clip)}
           poster={index === 0 ? poster : undefined}
+          autoPlay={index === 0 && !reduceMotion}
           muted
           playsInline
           // The first two load right away; later ones as their turn nears.
