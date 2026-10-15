@@ -58,6 +58,28 @@ const SiteSettingsSchema = new Schema<SiteSettingsDocument>(
       ),
       default: () => ({}),
     },
+    // Automatic posting queue for Facebook groups (run by the Chrome extension).
+    facebookQueue: {
+      type: new Schema(
+        {
+          enabled: { type: Boolean, default: false },
+          postsPerDay: { type: Number, default: 6 },
+          groupsPerListing: { type: Number, default: 2 },
+          startHour: { type: Number, default: 9 },
+          endHour: { type: Number, default: 20 },
+          minGapMinutes: { type: Number, default: 20 },
+          repostDays: { type: Number, default: 14 },
+          alertEmail: { type: String, default: '', trim: true },
+          pausedUntil: { type: Date, default: null },
+          consecutiveFailures: { type: Number, default: 0 },
+          // The extension authenticates with a key whose hash is stored here.
+          extensionKeyHash: { type: String, default: '' },
+          extensionLastSeen: { type: Date, default: null },
+        },
+        { _id: false }
+      ),
+      default: () => ({}),
+    },
     // Outgoing mail for website forms. The password is stored encrypted.
     smtp: {
       type: new Schema(

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { api } from '../api/api';
 import { Button, Card, Input } from './ui';
+import Switch from './ui/switch';
 
 interface PageSettings {
   pageId: string;
@@ -166,13 +167,11 @@ export function FacebookPageCard({
         <Button type='button' variant='outline' disabled={!ready || busy !== null} onClick={test}>
           {busy === 'test' ? 'בודק…' : 'בדיקת חיבור'}
         </Button>
-        <label className='flex min-h-11 cursor-pointer items-center gap-2.5 text-sm'>
-          <input
-            type='checkbox'
-            className='h-4 w-4 accent-ink'
+        <label className='flex min-h-11 cursor-pointer items-center gap-3 text-sm'>
+          <Switch
             disabled={!ready || busy !== null}
             checked={saved.autoPost}
-            onChange={(e) => toggleAuto(e.target.checked)}
+            onCheckedChange={toggleAuto}
           />
           פרסום אוטומטי של נכסים חדשים מיד2 לעמוד
         </label>

@@ -156,7 +156,34 @@ function watchForWarning(jobId) {
 
 const log = (...args) => console.info('[שרון נכסים]', ...args);
 
-async function fill({ jobId, text, images }) {
+// The composer's "Post" button, once Facebook enables it (after uploads).
+function findPostButton(dialog) {
+  return [...dialog.querySelectorAll('[role="button"], button')].find(
+    (b) => POST_BUTTON.test(labelOf(b)) && b.getAttribute('aria-disabled') !== 'true' && !b.disabled,
+  );
+}
+
+/** Automatic mode: clicks "Post" and waits for Facebook to take it. */
+async function publish(textbox, jobId) {
+  const dialog = textbox.closest('[role="dialog"]');
+  const button = await waitFor(() => dialog && findPostButton(dialog), 60000);
+  if (!button) return { status: 'error', message: 'כפתור ״פרסום״ לא הופעל (אולי התמונות לא עלו).' };
+  await wait(4000 + Math.random() * 5000);
+  button.click();
+  log('נלחץ ״פרסום״');
+  // Posted when the composer closes; a warning may appear instead.
+  const end = Date.now() + 60000;
+  while (Date.now() < end) {
+    await wait(1000);
+    if (FB_WARNING.test(document.body.innerText)) {
+      return { status: 'warning', message: 'פייסבוק הציגה אזהרה מיד אחרי הפרסום.' };
+    }
+    if (!document.body.contains(textbox)) return { status: 'posted' };
+  }
+  return { status: 'error', message: 'הפוסט לא נשלח תוך דקה.' };
+}
+
+async function fill({ jobId, text, images, autoPost = false }) {
   log('קיבלתי בקשה למלא פוסט', { images: images.length });
   banner('התוסף מתחיל למלא את הפוסט…');
   if (FB_WARNING.test(document.body.innerText)) {
@@ -195,6 +222,13 @@ async function fill({ jobId, text, images }) {
   await wait(600 + Math.random() * 900);
   const imagesAdded = await insertImages(textbox, images);
   log('תמונות שצורפו:', imagesAdded);
+
+  if (autoPost) {
+    if (!textOk) return { status: 'error', message: 'הטקסט לא נכנס לפוסט.' };
+    const result = await publish(textbox, jobId);
+    banner(result.status === 'posted' ? 'הפוסט פורסם אוטומטית.' : result.message, result.status === 'posted' ? 'ok' : 'warn');
+    return result;
+  }
 
   watchForPost(jobId);
   watchForWarning(jobId);

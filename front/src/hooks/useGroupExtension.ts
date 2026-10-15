@@ -45,5 +45,10 @@ export function useGroupExtension(onResult: (jobId: string, result: ExtensionRes
     window.postMessage({ source: TO_EXT, type: 'FILL_GROUP', ...job }, window.location.origin);
   }
 
-  return { installed: info !== null, info, fillGroup };
+  /** Gives the extension the server address and key for the automatic queue. */
+  function connectQueue(apiBase: string, key: string) {
+    window.postMessage({ source: TO_EXT, type: 'SET_QUEUE_CONFIG', apiBase, key }, window.location.origin);
+  }
+
+  return { installed: info !== null, info, fillGroup, connectQueue };
 }

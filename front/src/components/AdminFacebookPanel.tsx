@@ -10,12 +10,24 @@ import { pickVariant, POST_PLACEHOLDERS, renderPost, templateVariants } from '..
 import { ExtensionResult, useGroupExtension } from '../hooks/useGroupExtension';
 import { Apartment } from '../types/apartment.types';
 import { FacebookPageCard } from './FacebookPageCard';
+import { FacebookQueueCard } from './FacebookQueueCard';
+import Switch from './ui/switch';
+
+type GroupDealType = 'sale' | 'rent' | 'any';
 
 interface Group {
   _id: string;
   name: string;
   url: string;
+  dealType?: GroupDealType;
+  city?: string;
 }
+
+const GROUP_DEAL_LABELS: Record<GroupDealType, string> = {
+  rent: 'השכרה',
+  sale: 'מכירה',
+  any: 'מכירה והשכרה',
+};
 
 interface PagePost {
   apartmentId: string;
@@ -301,9 +313,18 @@ export function AdminFacebookPanel() {
 
       <FacebookPageCard onReadyChange={setPageReady} onNotice={flash} onError={setError} />
 
+      <FacebookQueueCard
+        extensionInstalled={extension.installed}
+        connectExtension={extension.connectQueue}
+        onNotice={flash}
+        onError={setError}
+      />
+
       <div className='grid gap-6 lg:grid-cols-2'>
         <GroupsCard
           groups={groups}
+          cities={[...new Set(apartments.map((a) => a.city))].sort()}
+          onChange={(group) => setGroups((g) => g.map((x) => (x._id === group._id ? group : x)))}
           onAdd={(group) => {
             setGroups((g) => [...g, group]);
             flash(`הקבוצה ״${group.name}״ נוספה.`);
@@ -356,13 +377,8 @@ export function AdminFacebookPanel() {
               </p>
             )}
           </div>
-          <label className='flex min-h-11 cursor-pointer items-center gap-2.5 text-sm'>
-            <input
-              type='checkbox'
-              checked={onlyPending}
-              onChange={(e) => setOnlyPending(e.target.checked)}
-              className='h-4 w-4 accent-ink'
-            />
+          <label className='flex min-h-11 cursor-pointer items-center gap-3 text-sm'>
+            <Switch checked={onlyPending} onCheckedChange={setOnlyPending} />
             רק נכסים שטרם פורסמו בכל הקבוצות
           </label>
         </div>
@@ -555,8 +571,12 @@ function GroupsCard({
   onAdd,
   onDelete,
   onError,
+  onChange,
+  cities,
 }: {
   groups: Group[];
+  cities: string[];
+  onChange: (group: Group) => void;
   onAdd: (group: Group) => void;
   onDelete: (group: Group) => void;
   onError: (message: string) => void;
@@ -564,6 +584,15 @@ function GroupsCard({
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+
+  async function setGroupField(group: Group, change: { dealType?: GroupDealType; city?: string }) {
+    try {
+      const res = await api.patch<Group>(`/admin/facebook/groups/${group._id}`, change);
+      onChange(res.data);
+    } catch {
+      onError('שינוי סוג הקבוצה נכשל.');
+    }
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -587,16 +616,41 @@ function GroupsCard({
       {groups.length > 0 ? (
         <ul className='divide-y divide-line border-y border-line'>
           {groups.map((group) => (
-            <li key={group._id} className='flex items-center justify-between gap-3 py-2.5'>
+            <li key={group._id} className='flex flex-wrap items-center gap-2 py-2.5'>
               <a
                 href={group.url}
                 target='_blank'
                 rel='noopener noreferrer'
-                className='inline-flex min-w-0 items-center gap-2 hover:underline'
+                className='inline-flex min-w-0 flex-1 basis-full items-center gap-2 hover:underline sm:basis-auto'
               >
                 <span className='truncate'>{group.name}</span>
                 <ExternalLink className='h-3.5 w-3.5 shrink-0 text-taupe' aria-hidden='true' />
               </a>
+              <select
+                aria-label={`סוג הנכסים בקבוצה ${group.name}`}
+                value={group.dealType ?? 'any'}
+                onChange={(e) => setGroupField(group, { dealType: e.target.value as GroupDealType })}
+                className='mr-auto h-9 shrink-0 border border-line bg-white px-2 text-sm'
+              >
+                {(Object.keys(GROUP_DEAL_LABELS) as GroupDealType[]).map((k) => (
+                  <option key={k} value={k}>
+                    {GROUP_DEAL_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label={`העיר של הקבוצה ${group.name}`}
+                value={group.city ?? ''}
+                onChange={(e) => setGroupField(group, { city: e.target.value })}
+                className='h-9 max-w-[9rem] shrink-0 border border-line bg-white px-2 text-sm'
+              >
+                <option value=''>כל הערים</option>
+                {[...new Set([...cities, ...(group.city ? [group.city] : [])])].map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
               <button
                 type='button'
                 onClick={() => {

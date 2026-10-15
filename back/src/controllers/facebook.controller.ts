@@ -4,7 +4,7 @@ import path from 'path';
 import JSZip from 'jszip';
 import mongoose from 'mongoose';
 import { Apartment } from '../models/Apartment.model';
-import { FacebookGroup, FacebookPagePost, FacebookPost } from '../models/Facebook.model';
+import { FacebookGroup, FacebookPagePost, FacebookPost, guessGroupCity, guessGroupDealType } from '../models/Facebook.model';
 import { encryptSecret } from '../services/secrets.service';
 import { FacebookPageError, publishToPage, testPageConnection } from '../services/facebookPage.service';
 import { getSiteSettingsDoc } from '../models/SiteSettings.model';
@@ -112,8 +112,28 @@ export class FacebookController {
     if (!FACEBOOK_GROUP_RE.test(url) || url.length > 500) {
       return res.status(400).json({ message: 'Invalid group URL' });
     }
-    const group = await FacebookGroup.create({ name, url });
+    const dealType = ['sale', 'rent', 'any'].includes(req.body?.dealType) ? req.body.dealType : guessGroupDealType(name);
+    const cities = (await Apartment.distinct('city')) as string[];
+    const city = typeof req.body?.city === 'string' ? req.body.city.trim() : guessGroupCity(name, cities);
+    const group = await FacebookGroup.create({ name, url, dealType, city });
     return res.status(201).json(group.toObject());
+  }
+
+  async updateGroup(req: Request, res: Response) {
+    if (badId(req.params.id)) return res.status(404).json({ message: 'Not found' });
+    const { dealType, city } = req.body ?? {};
+    const set: Record<string, string> = {};
+    if (dealType !== undefined) {
+      if (!['sale', 'rent', 'any'].includes(dealType)) return res.status(400).json({ message: 'Invalid deal type' });
+      set.dealType = dealType;
+    }
+    if (city !== undefined) {
+      if (typeof city !== 'string' || city.length > 80) return res.status(400).json({ message: 'Invalid city' });
+      set.city = city.trim();
+    }
+    const group = await FacebookGroup.findByIdAndUpdate(req.params.id, { $set: set }, { new: true }).lean();
+    if (!group) return res.status(404).json({ message: 'Not found' });
+    return res.json(group);
   }
 
   async deleteGroup(req: Request, res: Response) {

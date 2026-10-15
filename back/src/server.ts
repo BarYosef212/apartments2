@@ -7,7 +7,7 @@ import scraperRouter from './routes/scraper.routes';
 import { adminSiteRouter, publicSiteRouter } from './routes/site.routes';
 import { UPLOADS_DIR } from './services/uploads.service';
 import { adminLeadsRouter, publicLeadsRouter } from './routes/leads.routes';
-import facebookRouter from './routes/facebook.routes';
+import facebookRouter, { extensionRouter } from './routes/facebook.routes';
 import { reschedule } from './services/scheduler.service';
 import { markInterruptedScans } from './services/yad2Scraper.service';
 import session from 'express-session'
@@ -44,6 +44,7 @@ app.use('/admin/site', adminSiteRouter);
 app.use('/leads', publicLeadsRouter);
 app.use('/admin/leads', adminLeadsRouter);
 app.use('/admin/facebook', facebookRouter);
+app.use('/extension', extensionRouter);
 app.use(
   '/uploads',
   express.static(UPLOADS_DIR, {

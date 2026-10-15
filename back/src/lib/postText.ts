@@ -41,6 +41,17 @@ function formatPrice(value?: number) {
   return `${value.toLocaleString('he-IL')} ₪`;
 }
 
+const VARIANT_SPLIT = /\n\s*-{3,}\s*\n/;
+
+/** One of the template's versions (split by a line of "---"), stable per seed. */
+export function pickVariant(template: string, seed: string) {
+  const variants = template.split(VARIANT_SPLIT).map((v) => v.trim()).filter(Boolean);
+  if (variants.length === 0) return template;
+  let hash = 0;
+  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  return variants[Math.abs(hash) % variants.length];
+}
+
 /** Fills the post template; a line whose placeholder has no value is dropped. */
 export function renderPost(
   template: string,
@@ -48,7 +59,7 @@ export function renderPost(
   ctx: { phone?: string; license?: string; siteUrl: string }
 ) {
   // Several versions may be split by a line of "---"; the Page uses the first.
-  template = template.split(/\n\s*-{3,}\s*\n/)[0];
+  template = template.split(VARIANT_SPLIT)[0];
   const price = a.price ? `${formatPrice(a.price)}${a.dealType === 'rent' ? ' לחודש' : ''}` : formatPrice(0);
   const values: Record<string, string> = {
     עסקה: a.dealType ? DEAL_LABELS[a.dealType] ?? '' : '',

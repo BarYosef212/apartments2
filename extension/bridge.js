@@ -14,7 +14,7 @@ window.addEventListener('message', async (event) => {
   const data = event.data;
   if (!data || data.source !== FROM_PAGE) return;
 
-  if (data.type === 'PING' || data.type === 'FILL_GROUP') {
+  if (data.type === 'PING' || data.type === 'FILL_GROUP' || data.type === 'SET_QUEUE_CONFIG') {
     try {
       const reply = await chrome.runtime.sendMessage(data);
       toPage({ type: data.type === 'PING' ? 'PONG' : 'ACK', jobId: data.jobId, ...reply });

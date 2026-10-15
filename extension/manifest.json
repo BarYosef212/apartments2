@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
   "name": "שרון נכסים - פרסום בקבוצות",
-  "description": "ממלא פוסט של נכס בקבוצת פייסבוק (טקסט ותמונות) ועוצר לפני ״פרסום״, עם מגבלות קצב.",
-  "version": "1.0.0",
+  "description": "פרסום נכסים בקבוצות פייסבוק: מילוי ידני עם אישור, או תור אוטומטי איטי עם מגבלות.",
+  "version": "1.1.0",
   "minimum_chrome_version": "116",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
   "host_permissions": [
     "https://www.facebook.com/*",
     "https://img.yad2.co.il/*",
@@ -20,13 +23,21 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:5173/*"],
-      "js": ["bridge.js"],
+      "matches": [
+        "http://localhost:5173/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://www.facebook.com/groups/*"],
-      "js": ["facebook.js"],
+      "matches": [
+        "https://www.facebook.com/groups/*"
+      ],
+      "js": [
+        "facebook.js"
+      ],
       "run_at": "document_idle"
     }
   ]

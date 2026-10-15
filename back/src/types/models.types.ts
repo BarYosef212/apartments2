@@ -101,7 +101,23 @@ export interface FacebookPageSettings {
   autoPostSince: Date | null;
 }
 
+export interface FacebookQueueSettings {
+  enabled: boolean;
+  postsPerDay: number;
+  groupsPerListing: number;
+  startHour: number;
+  endHour: number;
+  minGapMinutes: number;
+  repostDays: number;
+  alertEmail: string;
+  pausedUntil: Date | null;
+  consecutiveFailures: number;
+  extensionKeyHash: string;
+  extensionLastSeen: Date | null;
+}
+
 export interface SiteSettingsDocument extends Document {
+  facebookQueue: FacebookQueueSettings;
   smtp: SmtpSettings;
   facebookPage: FacebookPageSettings;
   facebookTemplate: string;

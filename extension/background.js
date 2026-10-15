@@ -86,8 +86,107 @@ async function startJob(job) {
   return { status: 'started' };
 }
 
+// ----- Automatic queue -----
+// Once a minute, ask the site's server whether a post is due. The server
+// plans the day and enforces the pace; the limits here (daily cap shared with
+// manual posts, Facebook-warning pause) apply on top.
+
+const QUEUE_ALARM = 'queue';
+// Where the queue's server may live (also needs host_permissions in manifest).
+const API_BASE = /^(http:\/\/localhost:4000|https:\/\/[a-z0-9.-]+)$/i;
+
+chrome.runtime.onInstalled.addListener(() => chrome.alarms.create(QUEUE_ALARM, { periodInMinutes: 1 }));
+chrome.runtime.onStartup.addListener(() => chrome.alarms.create(QUEUE_ALARM, { periodInMinutes: 1 }));
+chrome.alarms.onAlarm.addListener((alarm) => alarm.name === QUEUE_ALARM && queueTick());
+
+async function queueConfig() {
+  return (await chrome.storage.local.get('queueConfig')).queueConfig;
+}
+
+async function queueFetch(config, path, body) {
+  const res = await fetch(`${config.apiBase}${path}`, {
+    method: body ? 'POST' : 'GET',
+    headers: { 'x-extension-key': config.key, ...(body && { 'Content-Type': 'application/json' }) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`server ${res.status}`);
+  return res.json();
+}
+
+async function queueTick() {
+  const config = await queueConfig();
+  if (!config) return;
+  // One automatic post at a time, even if the worker wakes twice.
+  const { queueBusyUntil = 0 } = await chrome.storage.session.get('queueBusyUntil');
+  if (queueBusyUntil > Date.now()) return;
+  if (await checkAllowed()) return; // local cap reached, too soon after a manual post, or paused
+
+  let next;
+  try {
+    next = await queueFetch(config, '/extension/queue/next');
+  } catch {
+    return; // server unreachable; try again next minute
+  }
+  if (next.state !== 'post') return;
+
+  await chrome.storage.session.set({ queueBusyUntil: Date.now() + 10 * 60 * 1000 });
+  try {
+    const result = await runAutoPost(next.job);
+    await queueFetch(config, `/extension/queue/jobs/${next.job.jobId}/result`, result).catch(() => {});
+  } finally {
+    await chrome.storage.session.set({ queueBusyUntil: 0 });
+  }
+}
+
+/** Opens the group in its own unfocused window, posts, and closes it. */
+async function runAutoPost(job) {
+  if (!GROUP_URL.test(job.groupUrl || '')) return { status: 'error', message: 'קישור קבוצה לא תקין.' };
+  const images = [];
+  for (const url of (job.images || []).filter((u) => IMAGE_URL.test(u)).slice(0, MAX_IMAGES)) {
+    try {
+      images.push(await toDataUrl(url));
+    } catch {
+      // A missing photo shouldn't stop the post.
+    }
+  }
+
+  const undo = await recordFill();
+  const win = await chrome.windows.create({ url: job.groupUrl, focused: false, width: 1200, height: 900 });
+  const tabId = win.tabs[0].id;
+  try {
+    await waitForTabComplete(tabId);
+    await humanPause();
+    const result = await chrome.tabs.sendMessage(tabId, {
+      type: 'FILL',
+      jobId: job.jobId,
+      text: job.text,
+      images,
+      autoPost: true,
+    });
+    if (result?.status !== 'posted') await undoFill(undo);
+    if (result?.status === 'warning') await pause(48);
+    return { status: result?.status === 'filled' ? 'error' : result?.status || 'error', message: result?.message };
+  } catch (err) {
+    await undoFill(undo);
+    return { status: 'error', message: 'דף הקבוצה לא הגיב.' };
+  } finally {
+    // Leave it on screen briefly, then close.
+    setTimeout(() => chrome.windows.remove(win.id).catch(() => {}), 20 * 1000);
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
+    if (message?.type === 'SET_QUEUE_CONFIG') {
+      const apiBase = String(message.apiBase || '').replace(/\/$/, '');
+      if (!API_BASE.test(apiBase) || !/^[0-9a-f]{64}$/.test(message.key || '')) {
+        return { status: 'error', message: 'פרטי חיבור לא תקינים.' };
+      }
+      await chrome.storage.local.set({ queueConfig: { apiBase, key: message.key } });
+      chrome.alarms.create(QUEUE_ALARM, { periodInMinutes: 1 });
+      return { status: 'connected' };
+    }
+
     if (message?.type === 'PING') {
       const { settings, count, nextAllowedAt, pausedUntil } = await getState();
       return { status: 'ready', version: chrome.runtime.getManifest().version, settings, count, nextAllowedAt, pausedUntil };
