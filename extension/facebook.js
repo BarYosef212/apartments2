@@ -7,7 +7,7 @@
 // The "new post" box at the top of a group. Its wording varies by group type
 // and language (public groups say "create a public post").
 const COMPOSER_TRIGGER =
-  /כתבו משהו|כתוב משהו|כתבי משהו|כתוב\/?י? משהו|יצירת פוסט|ליצור פוסט|צור פוסט|פוסט ציבורי|פרסם משהו|Write something|Create a public post|Create post/i;
+  /כאן כותבים|כאן כותבות|כאן כותב|כתבו משהו|כתוב משהו|כתבי משהו|כתוב\/?י? משהו|יצירת פוסט|ליצור פוסט|צור פוסט|פוסט ציבורי|פרסם משהו|Write something|Create a public post|Create post/i;
 const POST_BUTTON = /^(פרסום|פרסם|פרסמי|Post)$/;
 // Groups that don't take broker listings.
 const NO_BROKERS = /ללא\s*תיווך|בלי\s*תיווך|ללא\s*מתווכים|לא\s*למתווכים|מתווכים\s*(?:יוסרו|יחסמו)|no\s*brokers/i;
