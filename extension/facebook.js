@@ -4,7 +4,10 @@
 // Facebook's page structure changes often; the selectors below look for
 // roles and visible Hebrew/English labels rather than generated class names.
 
-const COMPOSER_TRIGGER = /כתבו משהו|כתוב משהו|כתבי משהו|Write something/;
+// The "new post" box at the top of a group. Its wording varies by group type
+// and language (public groups say "create a public post").
+const COMPOSER_TRIGGER =
+  /כתבו משהו|כתוב משהו|כתבי משהו|כתוב\/?י? משהו|יצירת פוסט|ליצור פוסט|צור פוסט|פוסט ציבורי|פרסם משהו|Write something|Create a public post|Create post/i;
 const POST_BUTTON = /^(פרסום|פרסם|פרסמי|Post)$/;
 // Groups that don't take broker listings.
 const NO_BROKERS = /ללא\s*תיווך|בלי\s*תיווך|ללא\s*מתווכים|לא\s*למתווכים|מתווכים\s*(?:יוסרו|יחסמו)|no\s*brokers/i;
@@ -60,10 +63,21 @@ function groupInfoText() {
   return parts.join('\n');
 }
 
+const labelOf = (el) => (el.getAttribute('aria-label') || el.getAttribute('aria-placeholder') || el.innerText || '').trim();
+
 function findComposerTrigger() {
-  return [...document.querySelectorAll('[role="button"]')].find((el) =>
-    COMPOSER_TRIGGER.test(el.innerText || el.getAttribute('aria-label') || ''),
+  // Prefer real buttons; the shortest matching text is the box itself rather
+  // than a large container that happens to include it.
+  const candidates = [...document.querySelectorAll('[role="button"], [tabindex="0"], [aria-placeholder]')]
+    .filter((el) => el.offsetParent !== null && COMPOSER_TRIGGER.test(labelOf(el)) && labelOf(el).length < 80)
+    .sort((a, b) => labelOf(a).length - labelOf(b).length);
+  if (candidates[0]) return candidates[0];
+
+  // Last resort: the visible text itself, clicking its nearest clickable parent.
+  const span = [...document.querySelectorAll('span')].find(
+    (el) => el.offsetParent !== null && el.childElementCount === 0 && COMPOSER_TRIGGER.test(el.innerText || ''),
   );
+  return span?.closest('[role="button"], [tabindex="0"]') ?? span ?? null;
 }
 
 function findTextbox() {
@@ -157,10 +171,10 @@ async function fill({ jobId, text, images }) {
   const trigger = await waitFor(findComposerTrigger);
   if (!trigger) {
     // For fixing the selectors when Facebook changes its page.
-    log(
-      'לא נמצא ״כתבו משהו״. כפתורים בדף:',
-      [...document.querySelectorAll('[role="button"]')].map((b) => (b.innerText || b.getAttribute('aria-label') || '').trim()).filter(Boolean).slice(0, 60),
-    );
+    const seen = [...document.querySelectorAll('[role="button"], [aria-placeholder]')]
+      .map(labelOf)
+      .filter((t) => t && t.length < 60);
+    log('לא נמצא כפתור יצירת פוסט. טקסטים של כפתורים בדף:\n' + [...new Set(seen)].slice(0, 80).join('\n'));
     banner('לא מצאתי את ״כתבו משהו״ בקבוצה. ייתכן שאינכם חברים בה.', 'warn');
     return { status: 'error', message: 'לא נמצא כפתור ״כתבו משהו״. ייתכן שאינכם חברים בקבוצה.' };
   }
