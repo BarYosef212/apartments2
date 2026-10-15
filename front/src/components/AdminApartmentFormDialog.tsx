@@ -6,7 +6,7 @@ import {
 } from '../types/component.types';
 
 const emptyForm: ApartmentFormState = {
-  img: '',
+  images: '',
   price: 0,
   street: '',
   city: '',
@@ -16,7 +16,8 @@ const emptyForm: ApartmentFormState = {
   floor: 0,
   size: '',
   tags: '',
-  premium:false
+  premium:false,
+  dealType: '',
 };
 
 export function AdminApartmentFormDialog({
@@ -33,7 +34,10 @@ export function AdminApartmentFormDialog({
   useEffect(() => {
     if (initialData) {
       setForm({
-        img: initialData.img,
+        images: (initialData.images?.length
+          ? initialData.images
+          : [initialData.img].filter(Boolean)
+        ).join('\n'),
         price: initialData.price,
         street: initialData.street,
         city: initialData.city,
@@ -44,6 +48,7 @@ export function AdminApartmentFormDialog({
         size: initialData.size,
         tags: initialData.tags.join(', '),
         premium: initialData.premium ? true : false,
+        dealType: initialData.dealType ?? '',
       });
     } else {
       setForm(emptyForm);
@@ -63,8 +68,8 @@ export function AdminApartmentFormDialog({
 
   return (
     <div className='fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm'>
-      <div className='w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl animate-in fade-in zoom-in duration-200'>
-        <h2 className='mb-4 text-lg font-semibold text-gray-900'>
+      <div className='w-full max-w-lg bg-white p-6 animate-in fade-in zoom-in duration-200'>
+        <h2 className='mb-6 font-display text-4xl font-light leading-none'>
           {initialData ? 'עריכת דירה' : 'הוספת דירה חדשה'}
         </h2>
         <form onSubmit={handleSubmit} className='space-y-4'>
@@ -91,13 +96,14 @@ export function AdminApartmentFormDialog({
 
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-1'>
-              <FormLabel required={true}>מחיר</FormLabel>
+              <FormLabel required={false}>מחיר</FormLabel>
 
               <Input
-                value={form.price}
+                value={form.price || ''}
                 onChange={(e) => handleChange('price', e.target.value)}
-                placeholder='₪'
-                required
+                type='number'
+                min={0}
+                placeholder='₪ (ריק = לא צוין מחיר)'
               />
             </div>
             <div className='space-y-1'>
@@ -152,12 +158,17 @@ export function AdminApartmentFormDialog({
           </div>
 
           <div className='space-y-1'>
-            <FormLabel required={false}>קישור לתמונה</FormLabel>
+            <FormLabel required={false}>
+              קישורים לתמונות (אחד בכל שורה, הראשון הוא התמונה הראשית)
+            </FormLabel>
 
-            <Input
-              value={form.img}
-              onChange={(e) => handleChange('img', e.target.value)}
+            <textarea
+              value={form.images}
+              onChange={(e) => handleChange('images', e.target.value)}
               placeholder='https://...'
+              dir='ltr'
+              rows={4}
+              className='w-full border border-border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             />
           </div>
 
@@ -179,14 +190,16 @@ export function AdminApartmentFormDialog({
           </div>
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-1'>
-              <FormLabel required={true}>מחיר</FormLabel>
+              <FormLabel required={false}>סוג עסקה</FormLabel>
 
-              <Input
-                value={form.price}
-                onChange={(e) => handleChange('price', e.target.value)}
-                placeholder='₪'
-                required
-              />
+              <Select
+                value={form.dealType}
+                onChange={(e) => handleChange('dealType', e.target.value)}
+              >
+                <option value=''>לא צוין</option>
+                <option value='sale'>למכירה</option>
+                <option value='rent'>להשכרה</option>
+              </Select>
             </div>
             <div className='space-y-1'>
               <FormLabel required={false}>פרימיום</FormLabel>
@@ -208,7 +221,7 @@ export function AdminApartmentFormDialog({
           <div className='mt-6 flex justify-end gap-3'>
             <Button
               type='button'
-              className='bg-white !text-gray-700 border border-gray-200 hover:bg-gray-50'
+              className='bg-white !text-ink border border-line hover:bg-sand'
               onClick={onClose}
             >
               ביטול

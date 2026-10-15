@@ -7,7 +7,7 @@ function Badge({ className, children, ...props }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground",
+        "inline-flex items-center bg-muted px-2.5 py-1 text-xs font-medium text-taupe",
         className
       )}
       {...props}

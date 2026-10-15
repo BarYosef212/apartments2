@@ -8,6 +8,7 @@ export interface ApartmentFilters {
   page?: number;
   limit?: number;
   premium?: boolean;
+  dealType?: 'sale' | 'rent';
 }
 
 export interface EmbeddingDocument {

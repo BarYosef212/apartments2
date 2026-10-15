@@ -1,4 +1,4 @@
-export const COMPANY_NAME = 'פרמיום נכסים';
+export const COMPANY_NAME = 'שרון נכסים';
 export const TOKEN_KEY = 'apartments_admin_token';
 export const DEFAULT_PAGE_SIZE = 21;
 export const DEFAULT_CARD_SKELETON_COUNT = 21;

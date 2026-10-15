@@ -1,6 +1,12 @@
+export type DealType = 'sale' | 'rent';
+
 export interface Apartment {
   _id: string;
   img: string;
+  images?: string[];
+  /** What the property includes, e.g. מעלית, חניה. */
+  features?: string[];
+  condition?: string;
   price: number;
   street: string;
   city: string;
@@ -11,6 +17,7 @@ export interface Apartment {
   size: string;
   tags: string[];
   premium?: boolean;
+  dealType?: DealType;
 }
 
 export interface ChatApartment {

@@ -1,15 +1,18 @@
 import { ApartmentsListPage } from './pages/ApartmentsListPage';
 import { ApartmentDetailsPage } from './pages/ApartmentDetailsPage';
 import { LoginPage } from './pages/LoginPage';
-import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { AdminPage } from './pages/AdminPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
+import { ContactPage } from './pages/ContactPage';
 import { ChatProvider } from './contexts/ChatContext';
+import { SiteSettingsProvider } from './contexts/SiteSettingsContext';
 
 export default function App() : JSX.Element {
   return (
+    <SiteSettingsProvider>
     <ChatProvider>
       <BrowserRouter>
         <Routes>
@@ -38,6 +41,14 @@ export default function App() : JSX.Element {
             }
           />
           <Route
+            path='/contact'
+            element={
+              <AppLayout>
+                <ContactPage />
+              </AppLayout>
+            }
+          />
+          <Route
             path='/login'
             element={
               <AppLayout>
@@ -50,7 +61,7 @@ export default function App() : JSX.Element {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <AdminDashboardPage />
+                  <AdminPage />
                 </AppLayout>
               </ProtectedRoute>
             }
@@ -58,6 +69,7 @@ export default function App() : JSX.Element {
       </Routes>
     </BrowserRouter>
     </ChatProvider>
+    </SiteSettingsProvider>
   );
 }
 

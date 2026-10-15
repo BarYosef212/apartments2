@@ -1,5 +1,6 @@
 import { Button } from './ui';
 import { AdminApartmentRowProps } from '../types/component.types';
+import { DEAL_TYPE_LABELS, formatPrice } from '../lib/format';
 
 export function AdminApartmentRow({
   apartment,
@@ -8,13 +9,16 @@ export function AdminApartmentRow({
   onDelete,
 }: AdminApartmentRowProps) {
   return (
-    <tr className='border-b border-border text-[11px] last:border-0 hover:bg-gray-50 transition-colors'>
+    <tr className='border-b border-border text-[11px] last:border-0 hover:bg-sand/60 transition-colors'>
       <td className='py-2 pl-4 pr-6'>{apartment.street}</td>
       <td className='py-2 pl-4'>{apartment.city}</td>
-      <td className='py-2 pl-4 font-medium'>{apartment.price}</td>
+      <td className='py-2 pl-4 font-medium'>{formatPrice(apartment.price)}</td>
       <td className='py-2 pl-4'>{apartment.rooms}</td>
       <td className='py-2 pl-4'>{apartment.size}</td>
       <td className='py-2 pl-4'>{apartment.type}</td>
+      <td className='py-2 pl-4'>
+        {apartment.dealType ? DEAL_TYPE_LABELS[apartment.dealType] : '—'}
+      </td>
       <td className='py-2 pl-0 text-left'>
         <div className='flex justify-center gap-2'>
           <Button
