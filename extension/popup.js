@@ -8,9 +8,12 @@ async function render() {
   $('count').textContent = count;
   $('cap').textContent = settings.dailyCap;
   $('dailyCap').value = settings.dailyCap;
+  $('devMode').checked = settings.devMode;
+  $('devBadge').hidden = !settings.devMode;
   $('minGap').value = settings.minGapMinutes;
-  $('next').textContent =
-    count >= settings.dailyCap
+  $('next').textContent = settings.devMode
+    ? 'מצב פיתוח: אפשר לפרסם עכשיו'
+    : count >= settings.dailyCap
       ? 'הגעתם למכסה של היום. מחר אפשר שוב.'
       : nextAllowedAt > Date.now()
         ? `הקבוצה הבאה אפשרית מ־${time(nextAllowedAt)}`
@@ -21,7 +24,11 @@ async function render() {
 
 $('form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  await saveSettings({ dailyCap: $('dailyCap').value, minGapMinutes: $('minGap').value });
+  await saveSettings({
+    dailyCap: $('dailyCap').value,
+    minGapMinutes: $('minGap').value,
+    devMode: $('devMode').checked,
+  });
   render();
 });
 

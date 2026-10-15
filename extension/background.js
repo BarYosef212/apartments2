@@ -1,4 +1,4 @@
-import { checkAllowed, getState, pause, recordFill } from './limits.js';
+import { checkAllowed, getState, pause, recordFill, undoFill } from './limits.js';
 
 const GROUP_URL = /^https:\/\/www\.facebook\.com\/groups\/[^\s]+$/;
 const IMAGE_URL = /^(https:\/\/img\.yad2\.co\.il\/|http:\/\/localhost:4000\/uploads\/)/;
@@ -63,7 +63,7 @@ async function startJob(job) {
   }
 
   // Counted when the fill starts, even if it isn't posted: the safer side.
-  await recordFill();
+  const undo = await recordFill();
   const tab = await chrome.tabs.create({ url: job.groupUrl, active: true });
   await saveJob({ ...job, tabId: tab.id });
   await waitForTabComplete(tab.id);
@@ -76,8 +76,11 @@ async function startJob(job) {
       text: job.text,
       images,
     });
+    // Nothing went into a post: don't count it against the limits.
+    if (result?.status !== 'filled') await undoFill(undo);
     await report(job, result);
   } catch (err) {
+    await undoFill(undo);
     await report(job, { status: 'error', message: 'הדף של הקבוצה לא הגיב. נסו שוב.' });
   }
   return { status: 'started' };

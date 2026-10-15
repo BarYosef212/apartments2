@@ -27,7 +27,12 @@
     הפרסום מושהה עד <span id="pausedUntil"></span> בגלל אזהרה מפייסבוק.
     <button class="secondary" id="resume" style="margin-top:8px;width:100%">חידוש עכשיו</button>
   </div>
+  <div class="warn" id="devBadge" hidden>מצב פיתוח פעיל: אין המתנה ואין מכסה יומית. בטלו לפני פרסום אמיתי.</div>
   <form id="form">
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:10px">
+      <input id="devMode" type="checkbox" style="width:18px;height:18px">
+      מצב פיתוח (בלי המתנה ובלי מכסה)
+    </label>
     <label>מקסימום קבוצות ביום (עד 25)
       <input id="dailyCap" type="number" min="1" max="25" required>
     </label>

@@ -14,7 +14,7 @@ export type ExtensionResult =
 export interface ExtensionInfo {
   version: string;
   count: number;
-  settings: { dailyCap: number; minGapMinutes: number };
+  settings: { dailyCap: number; minGapMinutes: number; devMode?: boolean };
   nextAllowedAt: number;
   pausedUntil: number;
 }

@@ -4,6 +4,8 @@
 export const DEFAULTS = {
   dailyCap: 12, // groups per day
   minGapMinutes: 10, // between two fills
+  // While testing the extension: no gap and no daily cap. Off for real posting.
+  devMode: false,
 };
 export const BOUNDS = {
   dailyCap: [1, 25],
@@ -24,6 +26,7 @@ export async function saveSettings(next) {
   const settings = {
     dailyCap: clamp('dailyCap', next.dailyCap),
     minGapMinutes: clamp('minGapMinutes', next.minGapMinutes),
+    devMode: next.devMode === true,
   };
   await chrome.storage.local.set({ settings });
   return settings;
@@ -46,18 +49,29 @@ export async function checkAllowed() {
   const { settings, count, nextAllowedAt, pausedUntil } = await getState();
   const now = Date.now();
   if (pausedUntil > now) return { reason: 'paused', until: pausedUntil };
+  if (settings.devMode) return null;
   if (count >= settings.dailyCap) return { reason: 'daily_cap', cap: settings.dailyCap };
   if (nextAllowedAt > now) return { reason: 'too_soon', until: nextAllowedAt };
   return null;
 }
 
-/** Counts a fill and sets when the next one may start. */
+/** Counts a fill and sets when the next one may start. Returns what to undo. */
 export async function recordFill() {
-  const { settings, count } = await getState();
+  const { settings, count, nextAllowedAt } = await getState();
   const jitter = Math.random() * JITTER_MINUTES * 60 * 1000;
   await chrome.storage.local.set({
     usage: { day: today(), count: count + 1 },
-    nextAllowedAt: Date.now() + settings.minGapMinutes * 60 * 1000 + jitter,
+    nextAllowedAt: settings.devMode ? 0 : Date.now() + settings.minGapMinutes * 60 * 1000 + jitter,
+  });
+  return { previousNextAllowedAt: nextAllowedAt };
+}
+
+/** A fill that didn't put anything into a post doesn't count. */
+export async function undoFill({ previousNextAllowedAt }) {
+  const { count } = await getState();
+  await chrome.storage.local.set({
+    usage: { day: today(), count: Math.max(0, count - 1) },
+    nextAllowedAt: previousNextAllowedAt,
   });
 }
 

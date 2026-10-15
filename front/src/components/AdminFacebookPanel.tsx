@@ -340,6 +340,11 @@ export function AdminFacebookPanel() {
                 <span className='font-semibold text-emerald-800'>התוסף מחובר.</span> לחיצה על
                 קבוצה פותחת אותה וממלאת את הפוסט עם התמונות. היום:{' '}
                 {extension.info.count} מתוך {extension.info.settings.dailyCap} קבוצות.
+                {extension.info.settings.devMode && (
+                  <span className='mr-2 font-semibold text-red-700'>
+                    מצב פיתוח פעיל: אין המתנה ואין מכסה. בטלו אותו בתוסף לפני פרסום אמיתי.
+                  </span>
+                )}
               </p>
             ) : (
               <p className='mt-2 text-sm text-taupe'>
