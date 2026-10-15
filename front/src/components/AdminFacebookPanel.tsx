@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils';
 import { api } from '../api/api';
 import { Button, Card, Input } from './ui';
 import { useSiteSettings } from '../contexts/SiteSettingsContext';
-import { formatPrice, sizedImage } from '../lib/format';
-import { POST_PLACEHOLDERS, renderPost } from '../lib/facebookPost';
+import { formatPrice, mediaUrl, sizedImage } from '../lib/format';
+import { pickVariant, POST_PLACEHOLDERS, renderPost, templateVariants } from '../lib/facebookPost';
+import { ExtensionResult, useGroupExtension } from '../hooks/useGroupExtension';
 import { Apartment } from '../types/apartment.types';
 import { FacebookPageCard } from './FacebookPageCard';
 
@@ -120,17 +121,79 @@ export function AdminFacebookPanel() {
     setNotice(message);
   }
 
-  const textFor = (apartment: Apartment) =>
-    renderPost(savedTemplate, apartment, { phone, siteOrigin: window.location.origin });
+  // Each group gets its own version of the text (when there are several).
+  const textFor = (apartment: Apartment, group?: Group) =>
+    renderPost(pickVariant(savedTemplate, `${apartment._id}:${group?._id ?? ''}`), apartment, {
+      phone,
+      siteOrigin: window.location.origin,
+    });
+
+  // Fills in progress through the extension, by job id.
+  const jobs = useRef(new Map<string, { apartment: Apartment; group: Group }>());
+  const extension = useGroupExtension((jobId, result) => {
+    const job = jobs.current.get(jobId);
+    if (!job) return;
+    handleExtensionResult(job.apartment, job.group, result);
+    if (result.status !== 'filled') jobs.current.delete(jobId);
+  });
+
+  function handleExtensionResult(apartment: Apartment, group: Group, result: ExtensionResult) {
+    const when = (ms?: number) =>
+      ms ? new Date(ms).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '';
+    switch (result.status) {
+      case 'filled':
+        flash(
+          result.textOk
+            ? `הפוסט מולא בקבוצה ״${group.name}״${result.imagesAdded ? ` עם ${result.imagesAdded} תמונות` : ''}. בדקו ולחצו ״פרסום״ בפייסבוק.`
+            : `הקבוצה נפתחה, אבל הטקסט לא נכנס. הוא הועתק: הדביקו אותו ידנית.`,
+        );
+        break;
+      case 'posted':
+        markPosted(apartment, group);
+        break;
+      case 'limit':
+        setError(
+          result.reason === 'daily_cap'
+            ? `הגעתם למכסה של ${result.cap} קבוצות להיום. אפשר להמשיך מחר.`
+            : result.reason === 'paused'
+              ? `הפרסום בקבוצות מושהה עד ${when(result.until)} בגלל אזהרה מפייסבוק.`
+              : `כדי לא להיראות כמו מכונה, הקבוצה הבאה אפשרית מ־${when(result.until)}.`,
+        );
+        break;
+      default:
+        setError(result.message ?? 'משהו השתבש בתוסף.');
+    }
+  }
+
+  function imageUrlsFor(apartment: Apartment) {
+    const images = apartment.images?.length ? apartment.images : apartment.img ? [apartment.img] : [];
+    return images.map((url) => mediaUrl(sizedImage(url, 1600)));
+  }
 
   function copyText(apartment: Apartment) {
     if (copyNow(textFor(apartment))) flash(`הטקסט של ${apartment.street} הועתק.`);
     else setError('לא הצלחנו להעתיק. פתחו ״הצגת הטקסט״, סמנו והעתיקו ידנית.');
   }
 
-  /** Copies the text, opens the group, and walks through the rest. */
+  /**
+   * With the extension: it opens the group and fills the post. Without it:
+   * copy the text, open the group, and walk through the rest.
+   */
   function postToGroup(apartment: Apartment, group: Group) {
-    const copied = copyNow(textFor(apartment));
+    if (extension.installed) {
+      const jobId = `${apartment._id}:${group._id}:${Date.now()}`;
+      jobs.current.set(jobId, { apartment, group });
+      setError(null);
+      flash(`פותח את ״${group.name}״ וממלא את הפוסט…`);
+      extension.fillGroup({
+        jobId,
+        groupUrl: group.url,
+        text: textFor(apartment, group),
+        images: imageUrlsFor(apartment),
+      });
+      return;
+    }
+    const copied = copyNow(textFor(apartment, group));
     window.open(group.url, '_blank', 'noopener,noreferrer');
     setError(null);
     setNotice(null);
@@ -258,7 +321,13 @@ export function AdminFacebookPanel() {
           isDirty={template !== savedTemplate}
           onChange={setTemplate}
           onSave={saveTemplate}
-          preview={apartments[0] ? renderPost(template, apartments[0], { phone, siteOrigin: window.location.origin }) : ''}
+          preview={
+            apartments[0]
+              ? templateVariants(template)
+                  .map((v) => renderPost(v, apartments[0], { phone, siteOrigin: window.location.origin }))
+                  .join('\n\n— נוסח נוסף —\n\n')
+              : ''
+          }
         />
       </div>
 
@@ -266,10 +335,18 @@ export function AdminFacebookPanel() {
         <div className='flex flex-wrap items-center justify-between gap-4 border-b border-line p-6'>
           <div>
             <h2 className={SECTION_TITLE}>פרסום נכסים</h2>
-            <p className='mt-2 text-sm text-taupe'>
-              לחיצה על קבוצה מעתיקה את הטקסט ופותחת את הקבוצה, וחלון כאן מסביר
-              את שאר הצעדים.
-            </p>
+            {extension.installed && extension.info ? (
+              <p className='mt-2 text-sm text-taupe'>
+                <span className='font-semibold text-emerald-800'>התוסף מחובר.</span> לחיצה על
+                קבוצה פותחת אותה וממלאת את הפוסט עם התמונות. היום:{' '}
+                {extension.info.count} מתוך {extension.info.settings.dailyCap} קבוצות.
+              </p>
+            ) : (
+              <p className='mt-2 text-sm text-taupe'>
+                לחיצה על קבוצה מעתיקה את הטקסט ופותחת את הקבוצה. עם תוסף הכרום של האתר,
+                הפוסט ימולא לבד עם התמונות.
+              </p>
+            )}
           </div>
           <label className='flex min-h-11 cursor-pointer items-center gap-2.5 text-sm'>
             <input
@@ -317,9 +394,9 @@ export function AdminFacebookPanel() {
       {publishing && (
         <PublishDialog
           {...publishing}
-          text={textFor(publishing.apartment)}
+          text={textFor(publishing.apartment, publishing.group)}
           onCopyAgain={() =>
-            setPublishing({ ...publishing, copied: copyNow(textFor(publishing.apartment)) })
+            setPublishing({ ...publishing, copied: copyNow(textFor(publishing.apartment, publishing.group)) })
           }
           onDownload={() => downloadImages(publishing.apartment)}
           onDone={() => markPosted(publishing.apartment, publishing.group)}
@@ -603,7 +680,9 @@ function TemplateCard({
       <div>
         <h2 className={SECTION_TITLE}>תבנית הפוסט</h2>
         <p className='mt-2 text-sm text-taupe'>
-          הטקסט שיועתק לכל נכס. שורה שאין לה ערך (למשל בלי קומה) לא תופיע.
+          הטקסט שיועתק לכל נכס. שורה שאין לה ערך (למשל בלי קומה) לא תופיע. אפשר לכתוב
+          כמה נוסחים, מופרדים בשורה שיש בה רק <code dir='ltr'>---</code>, וכל קבוצה תקבל
+          נוסח אחר.
         </p>
       </div>
       <div className='flex flex-wrap gap-1.5'>

@@ -43,6 +43,8 @@ function formatPrice(value?: number) {
 
 /** Fills the post template; a line whose placeholder has no value is dropped. */
 export function renderPost(template: string, a: PostApartment, ctx: { phone?: string; siteUrl: string }) {
+  // Several versions may be split by a line of "---"; the Page uses the first.
+  template = template.split(/\n\s*-{3,}\s*\n/)[0];
   const price = a.price ? `${formatPrice(a.price)}${a.dealType === 'rent' ? ' לחודש' : ''}` : formatPrice(0);
   const values: Record<string, string> = {
     עסקה: a.dealType ? DEAL_LABELS[a.dealType] ?? '' : '',

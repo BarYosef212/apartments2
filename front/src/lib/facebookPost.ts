@@ -47,6 +47,24 @@ export const POST_PLACEHOLDERS: { key: string; label: string }[] = [
   { key: 'קישור', label: 'קישור לנכס באתר' },
 ];
 
+/** A template may hold several versions of the post, split by a line of "---". */
+export function templateVariants(template: string) {
+  const variants = template.split(/\n\s*-{3,}\s*\n/).map((v) => v.trim()).filter(Boolean);
+  return variants.length > 0 ? variants : [template];
+}
+
+/**
+ * Picks one version for a listing+group, so different groups get different
+ * wording (identical text across groups is a spam signal) but a given group
+ * always gets the same one.
+ */
+export function pickVariant(template: string, seed: string) {
+  const variants = templateVariants(template);
+  let hash = 0;
+  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  return variants[Math.abs(hash) % variants.length];
+}
+
 /**
  * Fills the template for one listing. A line whose placeholder has no value
  * (no floor, no description…) is dropped rather than left half-empty.
