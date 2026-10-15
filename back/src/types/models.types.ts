@@ -94,8 +94,16 @@ export interface SmtpSettings {
   from: string;
 }
 
+export interface FacebookPageSettings {
+  pageId: string;
+  tokenEncrypted: string;
+  autoPost: boolean;
+  autoPostSince: Date | null;
+}
+
 export interface SiteSettingsDocument extends Document {
   smtp: SmtpSettings;
+  facebookPage: FacebookPageSettings;
   facebookTemplate: string;
   heroMedia: { kind: 'image' | 'video'; url: string; more: string[] };
   ownersImage: string;

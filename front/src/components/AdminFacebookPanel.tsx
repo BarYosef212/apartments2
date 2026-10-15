@@ -8,11 +8,19 @@ import { useSiteSettings } from '../contexts/SiteSettingsContext';
 import { formatPrice, sizedImage } from '../lib/format';
 import { POST_PLACEHOLDERS, renderPost } from '../lib/facebookPost';
 import { Apartment } from '../types/apartment.types';
+import { FacebookPageCard } from './FacebookPageCard';
 
 interface Group {
   _id: string;
   name: string;
   url: string;
+}
+
+interface PagePost {
+  apartmentId: string;
+  postId: string | null;
+  postedAt: string | null;
+  error: string | null;
 }
 
 interface Post {
@@ -71,6 +79,9 @@ export function AdminFacebookPanel() {
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [posts, setPosts] = useState<Map<string, Post>>(new Map());
+  const [pagePosts, setPagePosts] = useState<Map<string, PagePost>>(new Map());
+  const [pageReady, setPageReady] = useState(false);
+  const [pagePublishing, setPagePublishing] = useState<string | null>(null);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [template, setTemplate] = useState('');
   const [savedTemplate, setSavedTemplate] = useState('');
@@ -90,8 +101,10 @@ export function AdminFacebookPanel() {
       api.get<Post[]>('/admin/facebook/posts'),
       api.get<{ template: string }>('/admin/facebook/template'),
       api.get<{ results: Apartment[] }>('/apartments', { params: { page: 1, limit: 200 } }),
+      api.get<PagePost[]>('/admin/facebook/page/posts'),
     ])
-      .then(([g, p, t, a]) => {
+      .then(([g, p, t, a, pp]) => {
+        setPagePosts(new Map(pp.data.map((post) => [post.apartmentId, post])));
         setGroups(g.data);
         setPosts(new Map(p.data.map((post) => [postKey(post.apartmentId, post.groupId), post])));
         setTemplate(t.data.template);
@@ -169,6 +182,22 @@ export function AdminFacebookPanel() {
     }
   }
 
+  async function publishToPage(apartment: Apartment) {
+    setPagePublishing(apartment._id);
+    try {
+      const res = await api.post<PagePost>('/admin/facebook/page/posts', { apartmentId: apartment._id });
+      setPagePosts((m) => new Map(m).set(apartment._id, res.data));
+      flash(`${apartment.street} פורסם בעמוד העסקי.`);
+    } catch (err) {
+      const detail = axios.isAxiosError(err)
+        ? (err.response?.data as { detail?: string })?.detail
+        : undefined;
+      setError(detail ? `הפרסום לעמוד נכשל: ${detail}` : 'הפרסום לעמוד נכשל.');
+    } finally {
+      setPagePublishing(null);
+    }
+  }
+
   async function saveTemplate() {
     try {
       const res = await api.put<{ template: string }>('/admin/facebook/template', { template });
@@ -203,6 +232,8 @@ export function AdminFacebookPanel() {
           {notice}
         </p>
       )}
+
+      <FacebookPageCard onReadyChange={setPageReady} onNotice={flash} onError={setError} />
 
       <div className='grid gap-6 lg:grid-cols-2'>
         <GroupsCard
@@ -274,6 +305,10 @@ export function AdminFacebookPanel() {
               onDownload={() => downloadImages(apartment)}
               onPost={(group) => postToGroup(apartment, group)}
               onUnmark={(group) => unmark(apartment, group)}
+              pageReady={pageReady}
+              pagePost={pagePosts.get(apartment._id)}
+              pagePublishing={pagePublishing === apartment._id}
+              onPublishPage={() => publishToPage(apartment)}
             />
           ))}
         </ul>
@@ -623,7 +658,15 @@ function ListingRow({
   onDownload,
   onPost,
   onUnmark,
+  pageReady,
+  pagePost,
+  pagePublishing,
+  onPublishPage,
 }: {
+  pageReady: boolean;
+  pagePost?: PagePost;
+  pagePublishing: boolean;
+  onPublishPage: () => void;
   apartment: Apartment;
   groups: Group[];
   posts: Map<string, Post>;
@@ -671,6 +714,28 @@ function ListingRow({
         </div>
 
         <div className='flex w-full flex-wrap gap-2 lg:w-auto lg:max-w-[50%] lg:justify-end'>
+          {pageReady &&
+            (pagePost?.postId ? (
+              <a
+                href={`https://www.facebook.com/${pagePost.postId}`}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='inline-flex min-h-10 items-center gap-2 border border-emerald-200 bg-emerald-50 px-3 text-sm text-emerald-900 hover:underline'
+              >
+                <Check className='h-4 w-4' aria-hidden='true' />
+                בעמוד העסקי{pagePost.postedAt ? ` · ${formatDate(pagePost.postedAt)}` : ''}
+              </a>
+            ) : (
+              <button
+                type='button'
+                onClick={onPublishPage}
+                disabled={pagePublishing}
+                title={pagePost?.error ? `ניסיון קודם נכשל: ${pagePost.error}` : undefined}
+                className='inline-flex min-h-10 items-center gap-2 bg-ink px-3 text-sm font-semibold text-white transition-colors hover:bg-black disabled:opacity-50'
+              >
+                {pagePublishing ? 'מפרסם…' : pagePost?.error ? 'פרסום לעמוד (נכשל, שוב)' : 'פרסום לעמוד העסקי'}
+              </button>
+            ))}
           {groups.map((group) => {
             const post = posts.get(postKey(apartment._id, group._id));
             return post ? (

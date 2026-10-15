@@ -6,6 +6,11 @@ const fc = new FacebookController();
 const router = Router();
 
 router.use(requireAdmin);
+router.get('/page', fc.getPage.bind(fc));
+router.put('/page', fc.savePage.bind(fc));
+router.post('/page/test', fc.testPage.bind(fc));
+router.get('/page/posts', fc.listPagePosts.bind(fc));
+router.post('/page/posts', fc.publishPagePost.bind(fc));
 router.get('/groups', fc.listGroups.bind(fc));
 router.post('/groups', fc.addGroup.bind(fc));
 router.delete('/groups/:id', fc.deleteGroup.bind(fc));

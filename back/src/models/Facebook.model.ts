@@ -27,5 +27,26 @@ const FacebookPostSchema = new Schema<FacebookPostDocument>({
 });
 FacebookPostSchema.index({ apartmentId: 1, groupId: 1 }, { unique: true });
 
+export interface FacebookPagePostDocument extends mongoose.Document {
+  apartmentId: mongoose.Types.ObjectId;
+  postId: string | null;
+  postedAt: Date | null;
+  error: string | null;
+  attempts: number;
+}
+
+/** A listing published (or attempted) on the office's Page. */
+const FacebookPagePostSchema = new Schema<FacebookPagePostDocument>(
+  {
+    apartmentId: { type: Schema.Types.ObjectId, required: true, unique: true },
+    postId: { type: String, default: null },
+    postedAt: { type: Date, default: null },
+    error: { type: String, default: null },
+    attempts: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
 export const FacebookGroup = mongoose.model<FacebookGroupDocument>('facebook_groups', FacebookGroupSchema);
 export const FacebookPost = mongoose.model<FacebookPostDocument>('facebook_posts', FacebookPostSchema);
+export const FacebookPagePost = mongoose.model<FacebookPagePostDocument>('facebook_page_posts', FacebookPagePostSchema);

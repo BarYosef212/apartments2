@@ -3,6 +3,7 @@ import { ScrapeLog } from '../models/ScrapeLog.model';
 import { getSettingsDoc, ScraperSettings } from '../models/ScraperSettings.model';
 import { EmbeddingController } from '../controllers/embedding.controller';
 import { ScrapeCounts } from '../types/models.types';
+import { autoPostNewListings } from './facebookPage.service';
 import { openYad2Session, Yad2BlockedError, Yad2Listing, Yad2Session } from './yad2Extractor';
 
 export type ScrapeTrigger = 'manual' | 'schedule';
@@ -252,6 +253,8 @@ export async function runScrape(trigger: ScrapeTrigger): Promise<void> {
       settings.lastStatus = 'success';
       log.status = 'success';
     }
+    // Runs after the scan is recorded; spaced out, so don't hold the scan open.
+    void autoPostNewListings();
   } catch (err) {
     const msg = (err as Error).message || 'Unknown error';
     console.error('[scraper] run failed:', msg);

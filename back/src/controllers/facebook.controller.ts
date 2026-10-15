@@ -4,7 +4,9 @@ import path from 'path';
 import JSZip from 'jszip';
 import mongoose from 'mongoose';
 import { Apartment } from '../models/Apartment.model';
-import { FacebookGroup, FacebookPost } from '../models/Facebook.model';
+import { FacebookGroup, FacebookPagePost, FacebookPost } from '../models/Facebook.model';
+import { encryptSecret } from '../services/secrets.service';
+import { FacebookPageError, publishToPage, testPageConnection } from '../services/facebookPage.service';
 import { getSiteSettingsDoc } from '../models/SiteSettings.model';
 import { UPLOADS_DIR, UPLOADS_URL_PREFIX } from '../services/uploads.service';
 
@@ -29,7 +31,76 @@ async function loadImage(url: string): Promise<Buffer | null> {
   }
 }
 
+function pageSettingsView(fp: any) {
+  return {
+    pageId: fp?.pageId ?? '',
+    hasToken: !!fp?.tokenEncrypted,
+    autoPost: !!fp?.autoPost,
+    autoPostSince: fp?.autoPostSince ?? null,
+  };
+}
+
 export class FacebookController {
+  // ----- Business Page (official Graph API) -----
+
+  async getPage(req: Request, res: Response) {
+    const s = await getSiteSettingsDoc();
+    return res.json(pageSettingsView(s.facebookPage));
+  }
+
+  async savePage(req: Request, res: Response) {
+    const { pageId, token, autoPost } = req.body ?? {};
+    const s = await getSiteSettingsDoc();
+    const fp = s.facebookPage;
+    if (pageId !== undefined) {
+      const id = String(pageId).trim();
+      if (id && !/^\d{5,30}$/.test(id)) return res.status(400).json({ message: 'Invalid page id' });
+      fp.pageId = id;
+    }
+    // Empty or missing token = keep the stored one; it is never returned.
+    if (typeof token === 'string' && token.trim()) {
+      if (token.length > 1000) return res.status(400).json({ message: 'Invalid token' });
+      fp.tokenEncrypted = encryptSecret(token.trim());
+    }
+    if (autoPost !== undefined) {
+      const on = autoPost === true;
+      if (on && (!fp.pageId || !fp.tokenEncrypted)) {
+        return res.status(400).json({ message: 'Page is not configured' });
+      }
+      if (on && !fp.autoPost) fp.autoPostSince = new Date();
+      fp.autoPost = on;
+    }
+    s.markModified('facebookPage');
+    await s.save();
+    return res.json(pageSettingsView(s.facebookPage));
+  }
+
+  async testPage(req: Request, res: Response) {
+    try {
+      return res.json(await testPageConnection());
+    } catch (err) {
+      const message = (err as Error).message;
+      return res.status(err instanceof FacebookPageError ? 400 : 500).json({ message, detail: message });
+    }
+  }
+
+  async listPagePosts(req: Request, res: Response) {
+    return res.json(await FacebookPagePost.find().select('apartmentId postId postedAt error').lean());
+  }
+
+  async publishPagePost(req: Request, res: Response) {
+    const { apartmentId } = req.body ?? {};
+    if (badId(apartmentId)) return res.status(400).json({ message: 'Invalid ids' });
+    try {
+      return res.json(await publishToPage(apartmentId));
+    } catch (err) {
+      const message = (err as Error).message;
+      return res.status(err instanceof FacebookPageError ? 400 : 500).json({ message, detail: message });
+    }
+  }
+
+  // ----- Groups (manual, assisted) -----
+
   async listGroups(req: Request, res: Response) {
     return res.json(await FacebookGroup.find().sort({ createdAt: 1 }).lean());
   }

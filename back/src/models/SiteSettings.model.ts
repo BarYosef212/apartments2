@@ -43,6 +43,21 @@ const SiteSettingsSchema = new Schema<SiteSettingsDocument>(
       default:
         '{עסקה}: {סוג} ב{עיר}\n{רחוב}, {עיר}\n{חדרים} חדרים · {שטח} מ״ר · קומה {קומה}\n{מחיר}\n\n{תיאור}\n\n{מאפיינים}\n\nלפרטים: {טלפון}\n{קישור}',
     },
+    // The office's Facebook Page, for official (Graph API) posting.
+    facebookPage: {
+      type: new Schema(
+        {
+          pageId: { type: String, default: '', trim: true },
+          tokenEncrypted: { type: String, default: '' },
+          autoPost: { type: Boolean, default: false },
+          // Only listings added after auto-posting was turned on are posted,
+          // so enabling it doesn't flood the Page with the whole back catalogue.
+          autoPostSince: { type: Date, default: null },
+        },
+        { _id: false }
+      ),
+      default: () => ({}),
+    },
     // Outgoing mail for website forms. The password is stored encrypted.
     smtp: {
       type: new Schema(
