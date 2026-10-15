@@ -44,6 +44,7 @@ export const POST_PLACEHOLDERS: { key: string; label: string }[] = [
   { key: 'תיאור', label: 'תיאור הנכס' },
   { key: 'מאפיינים', label: 'מה יש בנכס' },
   { key: 'טלפון', label: 'טלפון המשרד' },
+  { key: 'רישיון', label: 'מספר רישיון התיווך' },
   { key: 'קישור', label: 'קישור לנכס באתר' },
 ];
 
@@ -72,7 +73,7 @@ export function pickVariant(template: string, seed: string) {
 export function renderPost(
   template: string,
   apartment: Apartment,
-  context: { phone?: string; siteOrigin: string },
+  context: { phone?: string; license?: string; siteOrigin: string },
 ) {
   const price = apartment.price
     ? `${formatPrice(apartment.price)}${apartment.dealType === 'rent' ? ' לחודש' : ''}`
@@ -90,6 +91,7 @@ export function renderPost(
     תיאור: apartment.info?.trim() ?? '',
     מאפיינים: featureLines(apartment.features),
     טלפון: context.phone ?? '',
+    רישיון: context.license ?? '',
     קישור: `${context.siteOrigin}/apartments/${apartment._id}`,
   };
 

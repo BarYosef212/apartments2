@@ -42,7 +42,11 @@ function formatPrice(value?: number) {
 }
 
 /** Fills the post template; a line whose placeholder has no value is dropped. */
-export function renderPost(template: string, a: PostApartment, ctx: { phone?: string; siteUrl: string }) {
+export function renderPost(
+  template: string,
+  a: PostApartment,
+  ctx: { phone?: string; license?: string; siteUrl: string }
+) {
   // Several versions may be split by a line of "---"; the Page uses the first.
   template = template.split(/\n\s*-{3,}\s*\n/)[0];
   const price = a.price ? `${formatPrice(a.price)}${a.dealType === 'rent' ? ' לחודש' : ''}` : formatPrice(0);
@@ -60,6 +64,7 @@ export function renderPost(template: string, a: PostApartment, ctx: { phone?: st
       .map((f) => (FEATURE_EMOJI[f] ? `${FEATURE_EMOJI[f]} ${f}` : f))
       .join('\n'),
     טלפון: ctx.phone ?? '',
+    רישיון: ctx.license ?? '',
     קישור: `${ctx.siteUrl}/apartments/${String(a._id)}`,
   };
 

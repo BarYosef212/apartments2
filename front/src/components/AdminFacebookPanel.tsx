@@ -76,7 +76,9 @@ const formatDate = (value: string) =>
   new Date(value).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
 
 export function AdminFacebookPanel() {
-  const phone = useSiteSettings().settings?.contact.phone;
+  const contact = useSiteSettings().settings?.contact;
+  const phone = contact?.phone;
+  const license = contact?.license;
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [posts, setPosts] = useState<Map<string, Post>>(new Map());
@@ -125,6 +127,7 @@ export function AdminFacebookPanel() {
   const textFor = (apartment: Apartment, group?: Group) =>
     renderPost(pickVariant(savedTemplate, `${apartment._id}:${group?._id ?? ''}`), apartment, {
       phone,
+      license,
       siteOrigin: window.location.origin,
     });
 
@@ -324,7 +327,7 @@ export function AdminFacebookPanel() {
           preview={
             apartments[0]
               ? templateVariants(template)
-                  .map((v) => renderPost(v, apartments[0], { phone, siteOrigin: window.location.origin }))
+                  .map((v) => renderPost(v, apartments[0], { phone, license, siteOrigin: window.location.origin }))
                   .join('\n\n— נוסח נוסף —\n\n')
               : ''
           }

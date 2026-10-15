@@ -41,7 +41,7 @@ const SiteSettingsSchema = new Schema<SiteSettingsDocument>(
     facebookTemplate: {
       type: String,
       default:
-        '{עסקה}: {סוג} ב{עיר}\n{רחוב}, {עיר}\n{חדרים} חדרים · {שטח} מ״ר · קומה {קומה}\n{מחיר}\n\n{תיאור}\n\n{מאפיינים}\n\nלפרטים: {טלפון}\n{קישור}',
+        '{עסקה}: {סוג} ב{עיר}\n{רחוב}, {עיר}\n{חדרים} חדרים · {שטח} מ״ר · קומה {קומה}\n{מחיר}\n\n{תיאור}\n\n{מאפיינים}\n\nלפרטים: {טלפון}\nרישיון תיווך: {רישיון}\n{קישור}',
     },
     // The office's Facebook Page, for official (Graph API) posting.
     facebookPage: {

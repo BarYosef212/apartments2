@@ -59,6 +59,7 @@ export async function publishToPage(apartmentId: string) {
   const siteUrl = process.env.SITE_URL || 'http://localhost:5173';
   const message = renderPost(settings.facebookTemplate, apartment as any, {
     phone: settings.contact?.phone,
+    license: settings.contact?.license,
     siteUrl,
   });
 
