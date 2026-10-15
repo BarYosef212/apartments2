@@ -140,7 +140,11 @@ function watchForWarning(jobId) {
   setTimeout(() => observer.disconnect(), 10 * 60 * 1000);
 }
 
+const log = (...args) => console.info('[שרון נכסים]', ...args);
+
 async function fill({ jobId, text, images }) {
+  log('קיבלתי בקשה למלא פוסט', { images: images.length });
+  banner('התוסף מתחיל למלא את הפוסט…');
   if (FB_WARNING.test(document.body.innerText)) {
     chrome.runtime.sendMessage({ type: 'WARNING', jobId, message: 'פייסבוק מציגה אזהרת קצב.' });
     return { status: 'warning', message: 'פייסבוק מציגה אזהרת קצב. הפרסום הושהה.' };
@@ -151,16 +155,32 @@ async function fill({ jobId, text, images }) {
   }
 
   const trigger = await waitFor(findComposerTrigger);
-  if (!trigger) return { status: 'error', message: 'לא נמצא כפתור ״כתבו משהו״. ייתכן שאינכם חברים בקבוצה.' };
+  if (!trigger) {
+    // For fixing the selectors when Facebook changes its page.
+    log(
+      'לא נמצא ״כתבו משהו״. כפתורים בדף:',
+      [...document.querySelectorAll('[role="button"]')].map((b) => (b.innerText || b.getAttribute('aria-label') || '').trim()).filter(Boolean).slice(0, 60),
+    );
+    banner('לא מצאתי את ״כתבו משהו״ בקבוצה. ייתכן שאינכם חברים בה.', 'warn');
+    return { status: 'error', message: 'לא נמצא כפתור ״כתבו משהו״. ייתכן שאינכם חברים בקבוצה.' };
+  }
+  log('נמצא ״כתבו משהו״, פותח חלון פוסט');
   trigger.click();
 
   const textbox = await waitFor(findTextbox);
-  if (!textbox) return { status: 'error', message: 'חלון הפוסט לא נפתח.' };
+  if (!textbox) {
+    log('חלון הפוסט לא נמצא. דיאלוגים בדף:', document.querySelectorAll('[role="dialog"]').length);
+    banner('חלון הפוסט לא נפתח או לא זוהה.', 'warn');
+    return { status: 'error', message: 'חלון הפוסט לא נפתח.' };
+  }
+  log('חלון הפוסט נפתח');
   await wait(800 + Math.random() * 1200);
 
   const textOk = await insertText(textbox, text);
+  log('הכנסת טקסט:', textOk ? 'הצליחה' : 'נכשלה');
   await wait(600 + Math.random() * 900);
   const imagesAdded = await insertImages(textbox, images);
+  log('תמונות שצורפו:', imagesAdded);
 
   watchForPost(jobId);
   watchForWarning(jobId);
@@ -173,6 +193,8 @@ async function fill({ jobId, text, images }) {
   if (!textOk) navigator.clipboard?.writeText(text).catch(() => {});
   return { status: 'filled', textOk, imagesAdded };
 }
+
+log('התוסף פעיל בדף הקבוצה');
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== 'FILL') return;
